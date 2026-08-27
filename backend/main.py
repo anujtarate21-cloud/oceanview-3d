@@ -1,26 +1,38 @@
 """
 main.py - OceanView 3D FastAPI Backend
-Serves pre-processed ocean model JSON tiles, Argo profiles, coastline, and metadata with CORS, auto-invalidating cache, and GZip compression.
+High-performance backend serving pre-processed ocean model JSON tiles, Argo profiles, 
+coastline, and metadata with direct FileResponse streaming, HTTP Cache-Control headers, 
+CORS, and GZip compression.
 """
 
 import os
 import json
 from pathlib import Path
 from typing import Optional
-from functools import lru_cache
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 app = FastAPI(
     title="OceanView 3D API",
-    description="Backend service for INCOIS 3D Ocean Data Visualization Platform (SIH26067)",
+    description="High-performance backend for INCOIS 3D Ocean Data Visualization Platform (SIH26067)",
     version="1.0.0"
 )
 
-# Enable CORS for all frontend origins (Vite dev server, localhost, etc.)
+# Custom Middleware for HTTP Cache-Control headers (max-age=3600)
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        if request.method == "GET" and not request.url.path.endswith("/health"):
+            response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+        return response
+
+app.add_middleware(CacheControlMiddleware)
+
+# Enable CORS for all frontend origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,37 +41,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Enable GZip compression for fast JSON tile streaming (min size 1KB)
+# Enable GZip compression (minimum 1KB)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Resolve data directory dynamically
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "public" / "data"
 
 if not DATA_DIR.exists():
     DATA_DIR = Path("public/data").resolve()
-
-
-@lru_cache(maxsize=256)
-def _read_json_file_cached(file_path_str: str, mtime: float) -> dict:
-    """
-    Reads and caches JSON data from disk. 
-    Including file mtime in the cache key guarantees automatic cache invalidation
-    whenever a JSON file is regenerated on disk!
-    """
-    path = Path(file_path_str)
-    if not path.exists():
-        raise FileNotFoundError(f"File not found: {file_path_str}")
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def read_json(file_path: Path) -> dict:
-    """Helper that passes current file modification timestamp to cache."""
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"File '{file_path.name}' not found on server")
-    mtime = file_path.stat().st_mtime
-    return _read_json_file_cached(str(file_path), mtime)
 
 
 @app.get("/api/health")
@@ -69,40 +58,32 @@ async def health_check():
         "status": "online",
         "service": "OceanView 3D API",
         "data_dir_exists": DATA_DIR.exists(),
-        "version": "1.0.0",
-        "cached_entries": _read_json_file_cached.cache_info().currsize
+        "version": "1.0.0"
     }
-
-
-@app.post("/api/cache/clear")
-async def clear_cache():
-    """Manually flushes the backend in-memory cache."""
-    _read_json_file_cached.cache_clear()
-    return {"message": "Cache successfully cleared", "status": "ok"}
 
 
 @app.get("/api/metadata")
 async def get_metadata():
     """Returns dataset metadata (variables, depth levels, spatial extent, units, global min/max)."""
     meta_path = DATA_DIR / "metadata.json"
-    return read_json(meta_path)
+    if not meta_path.exists():
+        raise HTTPException(status_code=404, detail="Metadata file not found on server")
+    return FileResponse(meta_path, media_type="application/json")
 
 
 @app.get("/api/model-data")
 async def get_model_data(
     var: str = Query("temperature", description="Variable name: 'temperature' or 'salinity'"),
     depth: int = Query(0, description="Depth level in meters (e.g., 0, 50, 100, 200, 500, 1000)"),
-    timestep: int = Query(0, description="Timestep index (default: 0)")
+    timestep: int = Query(0, description="Timestep index (0, 1, 2)")
 ):
     """
-    Returns 2D ocean model slice for specified variable, depth, and timestep.
-    Matches filename pattern: {var}_d{depth}_t{timestep}.json
+    Direct ultra-low-latency file stream for 2D ocean model slice.
     """
     var_clean = var.lower().strip()
     tile_filename = f"{var_clean}_d{depth}_t{timestep}.json"
     tile_path = DATA_DIR / "tiles" / tile_filename
 
-    # Look for nearest depth match if exact depth file not found
     if not tile_path.exists():
         available_tiles = list((DATA_DIR / "tiles").glob(f"{var_clean}_d*_t{timestep}.json"))
         if not available_tiles:
@@ -121,16 +102,13 @@ async def get_model_data(
                 detail=f"Tile '{tile_filename}' not found and could not resolve nearest depth."
             )
 
-    data = read_json(tile_path)
-    # Ensure requested_depth is explicitly tagged so frontend knows what was requested vs actual
-    data["requested_depth"] = depth
-    return data
+    return FileResponse(tile_path, media_type="application/json")
 
 
 @app.get("/api/model-data/volume")
 async def get_model_volume(
     var: str = Query("temperature", description="Variable name: 'temperature' or 'salinity'"),
-    timestep: int = Query(0, description="Timestep index (default: 0)")
+    timestep: int = Query(0, description="Timestep index (0, 1, 2)")
 ):
     """
     Returns all depth slices for one variable+timestep (for full 3D volumetric rendering).
@@ -149,7 +127,8 @@ async def get_model_volume(
 
     slices = []
     for tf in tile_files:
-        data = read_json(tf)
+        with open(tf, "r", encoding="utf-8") as f:
+            data = json.load(f)
         slices.append({
             "depth": data.get("depth"),
             "values": data.get("values"),
@@ -157,14 +136,19 @@ async def get_model_volume(
             "slice_max": data.get("slice_max")
         })
 
-    meta = read_json(DATA_DIR / "metadata.json") if (DATA_DIR / "metadata.json").exists() else {}
+    with open(DATA_DIR / "metadata.json", "r", encoding="utf-8") as f:
+        meta = json.load(f)
+
+    with open(tile_files[0], "r", encoding="utf-8") as f:
+        sample_tile = json.load(f)
 
     return {
         "variable": var_clean,
         "timestep": timestep,
+        "timestamp": sample_tile.get("timestamp", ""),
         "units": meta.get("units", {}).get(var_clean, ""),
-        "lats": read_json(tile_files[0]).get("lats", []),
-        "lons": read_json(tile_files[0]).get("lons", []),
+        "lats": sample_tile.get("lats", []),
+        "lons": sample_tile.get("lons", []),
         "slices_count": len(slices),
         "slices": slices,
         "global_min": meta.get("var_ranges", {}).get(var_clean, {}).get("min"),
@@ -176,7 +160,9 @@ async def get_model_volume(
 async def get_argo_positions():
     """Returns list of all active Argo profiling float locations, timestamps, and metadata."""
     pos_path = DATA_DIR / "argo" / "positions.json"
-    return read_json(pos_path)
+    if not pos_path.exists():
+        raise HTTPException(status_code=404, detail="Argo positions file not found")
+    return FileResponse(pos_path, media_type="application/json")
 
 
 @app.get("/api/argo/profile/{float_id}")
@@ -194,11 +180,13 @@ async def get_argo_profile(float_id: str):
         else:
             raise HTTPException(status_code=404, detail=f"Profile for float ID '{float_id}' not found")
 
-    return read_json(profile_path)
+    return FileResponse(profile_path, media_type="application/json")
 
 
 @app.get("/api/coastline")
 async def get_coastline():
     """Returns GeoJSON coastline FeatureCollection for geographic 3D boundary rendering."""
     coast_path = DATA_DIR / "coastline.geojson"
-    return read_json(coast_path)
+    if not coast_path.exists():
+        raise HTTPException(status_code=404, detail="Coastline GeoJSON not found")
+    return FileResponse(coast_path, media_type="application/json")

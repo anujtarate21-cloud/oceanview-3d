@@ -2,9 +2,15 @@
   "dataset_name": "HYCOM Ocean Model (Indian Ocean)",
   "source": "HYCOM archive file",
   "conventions": "CF-1.6 NAVO_netcdf_v1.1",
-  "timestamp": "2024-09-05T09:00:00.000000000",
   "timesteps": [
-    0
+    0,
+    1,
+    2
+  ],
+  "timestamps": [
+    "2024-09-05T09:00:00",
+    "2024-09-06T09:00:00",
+    "2024-09-07T09:00:00"
   ],
   "depth_levels": [
     0.0,
