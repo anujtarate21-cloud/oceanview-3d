@@ -1,0 +1,56 @@
+{
+  "dataset_name": "HYCOM Ocean Model (Indian Ocean)",
+  "source": "HYCOM archive file",
+  "conventions": "CF-1.6 NAVO_netcdf_v1.1",
+  "timestamp": "2024-09-05T09:00:00.000000000",
+  "timesteps": [
+    0
+  ],
+  "depth_levels": [
+    0.0,
+    10.0,
+    25.0,
+    50.0,
+    100.0,
+    150.0,
+    200.0,
+    300.0,
+    400.0,
+    500.0,
+    700.0,
+    1000.0,
+    1500.0,
+    2000.0,
+    3000.0,
+    5000.0
+  ],
+  "variables": [
+    "salinity",
+    "temperature"
+  ],
+  "units": {
+    "temperature": "\u00b0C",
+    "salinity": "PSU"
+  },
+  "extent": {
+    "lat_min": 0.0,
+    "lat_max": 24.96,
+    "lon_min": 60.0,
+    "lon_max": 94.88,
+    "grid_rows": 313,
+    "grid_cols": 219,
+    "step": 2
+  },
+  "var_ranges": {
+    "salinity": {
+      "min": 0.89,
+      "max": 36.99,
+      "units": "PSU"
+    },
+    "temperature": {
+      "min": 1.1,
+      "max": 32.4,
+      "units": "\u00b0C"
+    }
+  }
+}

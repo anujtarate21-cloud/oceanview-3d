@@ -1,0 +1,32 @@
+# Virtual Environments
+env/
+venv/
+.venv/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Raw binary NetCDF datasets (we track preprocessed JSON in public/data)
+dataset/
+*.nc
+*.nc4
+hycom_data.nc
+
+# Node / Frontend Build
+node_modules/
+dist/
+.vite/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temp folders
+MY project/
+sih-2026-problem-statements/
