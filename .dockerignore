@@ -1,0 +1,15 @@
+node_modules/
+dist/
+env/
+venv/
+__pycache__/
+*.pyc
+*.nc
+*.nc4
+dataset/
+.git/
+.gitignore
+.vscode/
+.idea/
+MY project/
+sih-2026-problem-statements/
