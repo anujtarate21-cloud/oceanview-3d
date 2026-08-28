@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>OceanView 3D — INCOIS / MoES</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+  <canvas id="ocean-canvas"></canvas>
+
+  <!-- Loading overlay -->
+  <div id="loading-screen">
+    <div class="loading-inner">
+      <div class="sonar-ring"></div>
+      <div class="loading-text">SOUNDING OCEAN VOLUME&hellip;</div>
+      <div class="loading-sub">INCOIS 3D Hydrodynamic Model & Argo In-Situ Layer</div>
+    </div>
+  </div>
+
+  <!-- Top title bar -->
+  <header id="topbar">
+    <div id="topbar-left">
+      <span class="brand-mark">◉</span>
+      <div class="brand-text">
+        <span class="brand-title">OceanView 3D</span>
+        <span class="brand-sub">INCOIS &middot; Ministry of Earth Sciences</span>
+      </div>
+    </div>
+    <div id="topbar-right">
+      <button id="shortcuts-btn" class="icon-btn" title="Keyboard Shortcuts (?)">⌨</button>
+      <button id="outreach-toggle-btn" class="icon-btn" title="Public Outreach / Exhibition Mode (O)">◐</button>
+      <button id="toggle-sidebar-btn" class="icon-btn" title="Toggle Controls (H)">☰</button>
+    </div>
+  </header>
+
+  <!-- Sidebar controls -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Controls & Layers</span>
+      <span id="active-dataset-badge" class="badge">HYCOM 3D</span>
+    </div>
+
+    <!-- Outreach Mode Banner (Shown only in outreach mode) -->
+    <div id="outreach-banner" class="hidden">
+      <div class="outreach-title">🌟 Public Exhibition Mode</div>
+      <div class="outreach-desc">Interactive 3D walkthrough of the Indian Ocean's underwater water column and robotic Argo research floats.</div>
+      <div class="outreach-tours">
+        <button class="tour-btn" data-tour="surface">🌊 Warm Surface Layer</button>
+        <button class="tour-btn" data-tour="thermocline">🌡️ Thermocline (150m)</button>
+        <button class="tour-btn" data-tour="abyssal">⚓ Deep Abyssal (3000m)</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">
+        <span>Variable</span>
+        <span id="var-unit-badge" class="unit-tag">°C</span>
+      </div>
+      <div class="control-group">
+        <select id="variable-select">
+          <option value="temperature">Temperature (°C)</option>
+          <option value="salinity">Salinity (PSU)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">
+        <span>Depth Level</span>
+        <span id="depth-readout" class="readout-highlight">0 m</span>
+      </div>
+      <div class="control-group">
+        <input type="range" id="depth-slider" min="0" max="15" step="1" value="0">
+        <div id="depth-slider-ticks"></div>
+      </div>
+      <!-- Quick Depth Jump Presets -->
+      <div class="depth-presets">
+        <button class="preset-chip active" data-depth="0">0m (Surface)</button>
+        <button class="preset-chip" data-depth="150">150m (Thermocline)</button>
+        <button class="preset-chip" data-depth="500">500m (Mid)</button>
+        <button class="preset-chip" data-depth="1000">1000m (Deep)</button>
+        <button class="preset-chip" data-depth="3000">3000m (Abyssal)</button>
+      </div>
+    </div>
+
+    <div class="panel-section colormap-section">
+      <div class="section-label">
+        <span>Colormap Palette</span>
+      </div>
+      <div class="control-group">
+        <select id="colormap-select">
+          <option value="viridis">Viridis (Standard)</option>
+          <option value="thermal">Thermal (High Contrast Temp)</option>
+          <option value="haline">Haline (Salinity Gradient)</option>
+          <option value="jet">Jet (Classic Rainbow)</option>
+        </select>
+      </div>
+      <div id="colorbar-container">
+        <canvas id="colorbar" width="24" height="160"></canvas>
+        <div id="colorbar-labels">
+          <span id="colorbar-max">32.4°C</span>
+          <span id="colorbar-mid">16.7°C</span>
+          <span id="colorbar-min">1.1°C</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">
+        <span>Opacity</span>
+        <span id="opacity-readout">100%</span>
+      </div>
+      <div class="control-group">
+        <input type="range" id="opacity-slider" min="0" max="100" value="100">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">
+        <span>Vertical Exaggeration</span>
+        <span id="exag-readout">50×</span>
+      </div>
+      <div class="control-group">
+        <input type="range" id="exag-slider" min="1" max="200" value="50">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Map Overlays</div>
+      <div class="control-group toggle-row">
+        <label class="toggle"><input type="checkbox" id="toggle-coastline" checked><span>Coastline Vectors (Natural Earth)</span></label>
+        <label class="toggle"><input type="checkbox" id="toggle-argo" checked><span>Argo / Glider Floats (65 Profiles)</span></label>
+      </div>
+    </div>
+
+    <div class="panel-section" id="time-section">
+      <div class="section-label">
+        <span>Timestep Evolution</span>
+        <span id="time-readout">2024-09-05 (t0)</span>
+      </div>
+      <div class="control-group time-controls">
+        <button id="play-btn" class="icon-btn small" title="Play / pause (Space)">▶</button>
+        <input type="range" id="time-slider" min="0" max="2" step="1" value="0">
+      </div>
+    </div>
+
+    <div class="panel-section legend-section">
+      <div class="section-label">Legend</div>
+      <!-- Dynamic colourbar rendered by Legend.js -->
+      <div id="legend-container" class="legend-colorbar-wrap"></div>
+      <div id="legend-list">
+        <div class="legend-item"><span class="legend-dot argo"></span> Argo Profiling Float (In-situ)</div>
+        <div class="legend-item"><span class="legend-dot glider"></span> Autonomous Glider</div>
+        <div class="legend-item"><span class="legend-swatch land"></span> Land / Topographic Mask</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Tile-fetch busy indicator -->
+  <div id="tile-busy-indicator">
+    <div class="mini-spinner"></div>
+    <span>Streaming 3D NetCDF Slice&hellip;</span>
+  </div>
+
+  <!-- Argo hover tooltip -->
+  <div id="argo-tooltip" class="hidden"></div>
+
+  <!-- Depth-vs-variable profile modal -->
+  <div id="profile-modal" class="hidden">
+    <div id="profile-modal-inner">
+      <div id="profile-modal-header">
+        <div class="profile-header-left">
+          <div class="profile-title-row">
+            <span id="profile-type-badge" class="badge argo-badge">Argo Float</span>
+            <span id="profile-float-id">Float 1901910_231</span>
+          </div>
+          <div id="profile-float-meta">0.63°N, 75.72°E &middot; 2024-09-05 &middot; Sounding: 0 - 1900m</div>
+        </div>
+        <div class="profile-header-right">
+          <button id="download-chart-btn" class="icon-btn" title="Download Chart PNG">📷</button>
+          <button id="close-modal" class="icon-btn" title="Close (Esc)">✕</button>
+        </div>
+      </div>
+
+      <!-- Float Summary Highlights -->
+      <div id="profile-stats-bar">
+        <div class="stat-card">
+          <span class="stat-lbl">Surface Temp</span>
+          <span id="stat-surf-temp" class="stat-val temp">29.6 °C</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-lbl">Surface Salinity</span>
+          <span id="stat-surf-sal" class="stat-val sal">34.5 PSU</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-lbl">Thermocline Est.</span>
+          <span id="stat-thermocline" class="stat-val">110 m</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-lbl">Deep Water (1500m)</span>
+          <span id="stat-deep-temp" class="stat-val">4.2 °C</span>
+        </div>
+      </div>
+
+      <div id="profile-loading" class="hidden">
+        <div class="mini-spinner"></div> Loading Vertical In-Situ Sounding Profile&hellip;
+      </div>
+      <div id="profile-chart"></div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div id="shortcuts-modal" class="hidden">
+    <div id="shortcuts-modal-inner">
+      <div class="modal-title-bar">
+        <span>⌨ Keyboard Shortcuts</span>
+        <button id="close-shortcuts-btn" class="icon-btn">✕</button>
+      </div>
+      <div class="shortcuts-grid">
+        <div class="shortcut-row"><kbd>Space</kbd><span>Play / Pause Time Animation</span></div>
+        <div class="shortcut-row"><kbd>↑</kbd> / <kbd>↓</kbd><span>Step Depth Slice Up / Down</span></div>
+        <div class="shortcut-row"><kbd>←</kbd> / <kbd>→</kbd><span>Step Timestep Prev / Next</span></div>
+        <div class="shortcut-row"><kbd>T</kbd><span>Switch to Temperature Field</span></div>
+        <div class="shortcut-row"><kbd>S</kbd><span>Switch to Salinity Field</span></div>
+        <div class="shortcut-row"><kbd>O</kbd><span>Toggle Public Exhibition Mode</span></div>
+        <div class="shortcut-row"><kbd>H</kbd><span>Toggle Controls Sidebar</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd><span>Close Active Modal</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status strip -->
+  <div id="status-strip">
+    <span id="status-fps">60 FPS</span>
+    <span class="status-sep">|</span>
+    <span id="status-coords">Lat: 12.50°N &middot; Lon: 77.50°E</span>
+    <span class="status-sep">|</span>
+    <span id="status-active-slice">Slice: Temp @ 0m</span>
+    <span class="status-sep">|</span>
+    <span id="status-hint">💡 Click any orange Argo float marker to inspect real-time vertical hydrographic profile</span>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
