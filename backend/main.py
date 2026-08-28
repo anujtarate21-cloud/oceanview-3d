@@ -1,8 +1,8 @@
 """
 main.py - OceanView 3D FastAPI Backend
 High-performance backend serving pre-processed ocean model JSON tiles, Argo profiles, 
-coastline, and metadata with direct FileResponse streaming, HTTP Cache-Control headers, 
-CORS, and GZip compression.
+float drift tracking, coastline, and metadata with direct FileResponse streaming, 
+HTTP Cache-Control headers, CORS, and GZip compression.
 """
 
 import os
@@ -64,7 +64,7 @@ async def health_check():
 
 @app.get("/api/metadata")
 async def get_metadata():
-    """Returns dataset metadata (variables, depth levels, spatial extent, units, global min/max)."""
+    """Returns dataset metadata (variables, depth levels, timesteps, spatial extent, units, global min/max)."""
     meta_path = DATA_DIR / "metadata.json"
     if not meta_path.exists():
         raise HTTPException(status_code=404, detail="Metadata file not found on server")
@@ -157,12 +157,21 @@ async def get_model_volume(
 
 
 @app.get("/api/argo/positions")
-async def get_argo_positions():
-    """Returns list of all active Argo profiling float locations, timestamps, and metadata."""
-    pos_path = DATA_DIR / "argo" / "positions.json"
-    if not pos_path.exists():
+async def get_argo_positions(
+    timestep: int = Query(0, description="Timestep index (0, 1, 2) for Lagrangian float drift")
+):
+    """
+    Returns list of all active Argo profiling float locations.
+    Supports timestep parameter: GET /api/argo/positions?timestep=1 returns drifted positions for Day 2.
+    """
+    # Check for timestep-specific drift file
+    pos_file = DATA_DIR / "argo" / f"positions_t{timestep}.json"
+    if not pos_file.exists():
+        pos_file = DATA_DIR / "argo" / "positions.json"
+
+    if not pos_file.exists():
         raise HTTPException(status_code=404, detail="Argo positions file not found")
-    return FileResponse(pos_path, media_type="application/json")
+    return FileResponse(pos_file, media_type="application/json")
 
 
 @app.get("/api/argo/profile/{float_id}")
