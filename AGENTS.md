@@ -205,9 +205,9 @@ GET  /api/coastline
 ### Coordinate System Mapping
 
 ```
-Latitude  → X axis (scaled)
-Longitude → Y axis (scaled)
-Depth     → Z axis (NEGATIVE, multiplied by vertical exaggeration factor)
+Longitude → X axis (East-West, scaled)
+Latitude  → Y axis (North-South, scaled)
+Depth     → Z axis (NEGATIVE, depth increases downward, multiplied by vertical exaggeration)
 
 Conversion:
   x = (lon - lon_center) * scale_factor
