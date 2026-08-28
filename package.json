@@ -1,6 +1,6 @@
 {
   "name": "oceanview-3d",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,11 +8,11 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "dependencies": {
-    "plotly.js-dist-min": "^2.35.2",
-    "three": "^0.168.0"
-  },
   "devDependencies": {
-    "vite": "^5.4.10"
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "plotly.js-dist-min": "^4.0.0",
+    "three": "^0.185.1"
   }
 }

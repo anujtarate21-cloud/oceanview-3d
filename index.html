@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>OceanView 3D — INCOIS / MoES</title>
+  <meta name="description" content="Browser-native 3D ocean data visualization platform for INCOIS — explore temperature, salinity, and Argo float data across the Indian Ocean water column." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
 
@@ -18,7 +19,7 @@
     <div class="loading-inner">
       <div class="sonar-ring"></div>
       <div class="loading-text">SOUNDING OCEAN VOLUME&hellip;</div>
-      <div class="loading-sub">INCOIS 3D Hydrodynamic Model & Argo In-Situ Layer</div>
+      <div class="loading-sub">INCOIS 3D Hydrodynamic Model &amp; Argo In-Situ Layer</div>
     </div>
   </div>
 
@@ -41,7 +42,7 @@
   <!-- Sidebar controls -->
   <aside id="sidebar">
     <div class="sidebar-header">
-      <span class="sidebar-title">Controls & Layers</span>
+      <span class="sidebar-title">Controls &amp; Layers</span>
       <span id="active-dataset-badge" class="badge">HYCOM 3D</span>
     </div>
 
@@ -245,6 +246,6 @@
     <span id="status-hint">💡 Click any orange Argo float marker to inspect real-time vertical hydrographic profile</span>
   </div>
 
-  <script type="module" src="./main.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
