@@ -1,16 +1,27 @@
 """
-main.py - OceanView 3D FastAPI Backend
-High-performance backend serving pre-processed ocean model JSON tiles, Argo profiles, 
-float drift tracking, coastline, and metadata with direct FileResponse streaming, 
+main.py - OceanView 3D FastAPI Backend v2.0
+High-performance backend serving pre-processed ocean model JSON tiles, Argo profiles,
+float drift tracking, coastline, and metadata with direct FileResponse streaming,
 HTTP Cache-Control headers, CORS, and GZip compression.
+
+NEW in v2.0:
+- Date-based tile routing: ?date=2024-10-12 (maps to nearest timestep or triggers backfill)
+- Async on-demand pipeline: POST /api/pipeline/fetch triggers HYCOM download + preprocess
+- Job status tracking: GET /api/pipeline/status/{job_id}
+- Available dates endpoint: GET /api/pipeline/available-dates
 """
 
 import os
 import json
+import uuid
+import asyncio
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
+from datetime import datetime, date
 
-from fastapi import FastAPI, HTTPException, Query, Response, Request
+from fastapi import FastAPI, HTTPException, Query, Response, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -19,20 +30,27 @@ from starlette.middleware.base import BaseHTTPMiddleware
 app = FastAPI(
     title="OceanView 3D API",
     description="High-performance backend for INCOIS 3D Ocean Data Visualization Platform (SIH26067)",
-    version="1.0.0"
+    version="2.0.0"
 )
 
-# Custom Middleware for HTTP Cache-Control headers (max-age=3600)
+# ─── In-memory Job Store ──────────────────────────────────────────────────────
+# Tracks async pipeline jobs: { job_id: { status, date, started_at, finished_at, error } }
+_JOBS: dict[str, dict] = {}
+
+# ─── Middleware ───────────────────────────────────────────────────────────────
+
 class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         if request.method == "GET" and not request.url.path.endswith("/health"):
-            response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+            # Don't cache pipeline status (it changes rapidly)
+            if "/pipeline/status" not in request.url.path:
+                response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+            else:
+                response.headers["Cache-Control"] = "no-cache"
         return response
 
 app.add_middleware(CacheControlMiddleware)
-
-# Enable CORS for all frontend origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,31 +58,168 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Enable GZip compression (minimum 1KB)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# ─── Paths ────────────────────────────────────────────────────────────────────
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "public" / "data"
-
 if not DATA_DIR.exists():
     DATA_DIR = Path("public/data").resolve()
 
+SCRIPTS_DIR = BASE_DIR / "scripts"
+DATASET_DIR = BASE_DIR / "dataset"
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _get_available_dates() -> list[str]:
+    """
+    Scans the tiles directory and extracts all unique dates from tile filenames.
+    Supports both legacy format (temperature_d100_t0.json) using metadata timestamps,
+    and new date-keyed format (temperature_d100_2024-10-12.json).
+    """
+    available = set()
+
+    # New date-keyed tile format: temperature_d100_2024-10-12.json
+    for tile in (DATA_DIR / "tiles").glob("temperature_d*_????-??-??.json"):
+        parts = tile.stem.rsplit("_", 1)
+        if len(parts) == 2:
+            available.add(parts[1])
+
+    # Legacy timestep format — derive dates from metadata timestamps
+    if not available:
+        meta_path = DATA_DIR / "metadata.json"
+        if meta_path.exists():
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            for ts in meta.get("timestamps", []):
+                try:
+                    available.add(ts[:10])  # "2024-09-05T09:00:00" → "2024-09-05"
+                except Exception:
+                    pass
+
+    return sorted(available)
+
+
+def _date_to_timestep(date_str: str) -> int | None:
+    """
+    Maps a date string to a legacy timestep index using metadata timestamps.
+    Returns None if no exact match (caller should trigger backfill).
+    """
+    meta_path = DATA_DIR / "metadata.json"
+    if not meta_path.exists():
+        return None
+    with open(meta_path, "r", encoding="utf-8") as f:
+        meta = json.load(f)
+    timestamps = meta.get("timestamps", [])
+    for i, ts in enumerate(timestamps):
+        if ts.startswith(date_str):
+            return i
+    return None
+
+
+def _tile_exists_for_date(var: str, depth: int, date_str: str) -> Path | None:
+    """
+    Returns path to tile if it exists for the given date (new format), else None.
+    """
+    path = DATA_DIR / "tiles" / f"{var}_d{depth}_{date_str}.json"
+    return path if path.exists() else None
+
+
+async def _run_pipeline(job_id: str, date_str: str):
+    """
+    Background task: download HYCOM NetCDF for `date_str`, then preprocess into JSON tiles.
+    Updates _JOBS[job_id] throughout.
+    """
+    _JOBS[job_id]["status"] = "downloading"
+    _JOBS[job_id]["message"] = f"Fetching HYCOM data for {date_str} from NCSS server..."
+
+    nc_file = DATASET_DIR / f"hycom_{date_str}.nc"
+    DATASET_DIR.mkdir(exist_ok=True)
+
+    fetch_script = SCRIPTS_DIR / "fetch_hycom.py"
+    if not fetch_script.exists():
+        _JOBS[job_id]["status"] = "error"
+        _JOBS[job_id]["error"] = "fetch_hycom.py not found in scripts/"
+        return
+
+    # Step 1: Download
+    try:
+        result = await asyncio.create_subprocess_exec(
+            sys.executable, str(fetch_script),
+            "--date", date_str,
+            "--output-dir", str(DATASET_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await result.communicate()
+        if result.returncode != 0:
+            _JOBS[job_id]["status"] = "error"
+            _JOBS[job_id]["error"] = f"Download failed: {stderr.decode()[:500]}"
+            return
+    except Exception as e:
+        _JOBS[job_id]["status"] = "error"
+        _JOBS[job_id]["error"] = f"Download exception: {str(e)}"
+        return
+
+    if not nc_file.exists():
+        _JOBS[job_id]["status"] = "error"
+        _JOBS[job_id]["error"] = "NetCDF file not found after download"
+        return
+
+    # Step 2: Preprocess
+    _JOBS[job_id]["status"] = "processing"
+    _JOBS[job_id]["message"] = f"Preprocessing NetCDF into JSON tiles..."
+
+    preprocess_script = SCRIPTS_DIR / "preprocess_model.py"
+    if not preprocess_script.exists():
+        _JOBS[job_id]["status"] = "error"
+        _JOBS[job_id]["error"] = "preprocess_model.py not found in scripts/"
+        return
+
+    try:
+        result = await asyncio.create_subprocess_exec(
+            sys.executable, str(preprocess_script),
+            "--input", str(nc_file),
+            "--output", str(DATA_DIR),
+            "--date-label", date_str,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await result.communicate()
+        if result.returncode != 0:
+            _JOBS[job_id]["status"] = "error"
+            _JOBS[job_id]["error"] = f"Preprocessing failed: {stderr.decode()[:500]}"
+            return
+    except Exception as e:
+        _JOBS[job_id]["status"] = "error"
+        _JOBS[job_id]["error"] = f"Preprocessing exception: {str(e)}"
+        return
+
+    # Done
+    _JOBS[job_id]["status"] = "done"
+    _JOBS[job_id]["message"] = f"Tiles ready for {date_str}"
+    _JOBS[job_id]["finished_at"] = datetime.utcnow().isoformat()
+
+
+# ─── Core Endpoints ───────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint to verify backend status."""
+    """Health check endpoint."""
     return {
         "status": "online",
         "service": "OceanView 3D API",
+        "version": "2.0.0",
         "data_dir_exists": DATA_DIR.exists(),
-        "version": "1.0.0"
+        "available_dates": _get_available_dates()
     }
 
 
 @app.get("/api/metadata")
 async def get_metadata():
-    """Returns dataset metadata (variables, depth levels, timesteps, spatial extent, units, global min/max)."""
+    """Returns dataset metadata (variables, depth levels, timesteps, dates, spatial extent, units, global min/max)."""
     meta_path = DATA_DIR / "metadata.json"
     if not meta_path.exists():
         raise HTTPException(status_code=404, detail="Metadata file not found on server")
@@ -74,13 +229,57 @@ async def get_metadata():
 @app.get("/api/model-data")
 async def get_model_data(
     var: str = Query("temperature", description="Variable name: 'temperature' or 'salinity'"),
-    depth: int = Query(0, description="Depth level in meters (e.g., 0, 50, 100, 200, 500, 1000)"),
-    timestep: int = Query(0, description="Timestep index (0, 1, 2)")
+    depth: int = Query(0, description="Depth level in meters"),
+    timestep: int = Query(0, description="Legacy timestep index (0, 1, 2)"),
+    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format (overrides timestep if provided)")
 ):
     """
-    Direct ultra-low-latency file stream for 2D ocean model slice.
+    Ultra-low-latency 2D ocean model slice streaming.
+    Supports both legacy ?timestep= and new ?date=YYYY-MM-DD routing.
+    On cache miss for a date, returns 202 with a job_id to poll.
     """
     var_clean = var.lower().strip()
+
+    # ── Date-based routing (v2) ──
+    if date:
+        # 1. Check new date-keyed tile format first
+        date_tile = _tile_exists_for_date(var_clean, depth, date)
+        if date_tile:
+            return FileResponse(date_tile, media_type="application/json")
+
+        # 2. Fall back to legacy timestep mapping
+        ts = _date_to_timestep(date)
+        if ts is not None:
+            tile_path = DATA_DIR / "tiles" / f"{var_clean}_d{depth}_t{ts}.json"
+            if tile_path.exists():
+                return FileResponse(tile_path, media_type="application/json")
+
+        # 3. Cache miss → trigger async backfill and return 202
+        job_id = str(uuid.uuid4())[:8]
+        _JOBS[job_id] = {
+            "job_id": job_id,
+            "date": date,
+            "status": "queued",
+            "message": "Queued for HYCOM download and preprocessing",
+            "started_at": datetime.utcnow().isoformat(),
+            "finished_at": None,
+            "error": None
+        }
+        # Fire background pipeline
+        asyncio.create_task(_run_pipeline(job_id, date))
+
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "processing",
+                "message": f"Data for {date} is not cached. Fetching from HYCOM in background.",
+                "job_id": job_id,
+                "poll_url": f"/api/pipeline/status/{job_id}",
+                "estimated_wait_seconds": 600
+            }
+        )
+
+    # ── Legacy timestep routing ──
     tile_filename = f"{var_clean}_d{depth}_t{timestep}.json"
     tile_path = DATA_DIR / "tiles" / tile_filename
 
@@ -88,10 +287,9 @@ async def get_model_data(
         available_tiles = list((DATA_DIR / "tiles").glob(f"{var_clean}_d*_t{timestep}.json"))
         if not available_tiles:
             raise HTTPException(
-                status_code=404, 
+                status_code=404,
                 detail=f"No tiles found for variable '{var_clean}' at timestep {timestep}"
             )
-        
         try:
             depths = [int(p.stem.split('_d')[1].split('_t')[0]) for p in available_tiles]
             nearest_depth = min(depths, key=lambda x: abs(x - depth))
@@ -107,12 +305,10 @@ async def get_model_data(
 
 @app.get("/api/model-data/volume")
 async def get_model_volume(
-    var: str = Query("temperature", description="Variable name: 'temperature' or 'salinity'"),
+    var: str = Query("temperature", description="Variable name"),
     timestep: int = Query(0, description="Timestep index (0, 1, 2)")
 ):
-    """
-    Returns all depth slices for one variable+timestep (for full 3D volumetric rendering).
-    """
+    """Returns all depth slices for one variable+timestep (full 3D volumetric rendering)."""
     var_clean = var.lower().strip()
     tile_files = sorted(
         (DATA_DIR / "tiles").glob(f"{var_clean}_d*_t{timestep}.json"),
@@ -121,7 +317,7 @@ async def get_model_volume(
 
     if not tile_files:
         raise HTTPException(
-            status_code=404, 
+            status_code=404,
             detail=f"No volume tiles found for variable '{var_clean}' at timestep {timestep}"
         )
 
@@ -160,15 +356,10 @@ async def get_model_volume(
 async def get_argo_positions(
     timestep: int = Query(0, description="Timestep index (0, 1, 2) for Lagrangian float drift")
 ):
-    """
-    Returns list of all active Argo profiling float locations.
-    Supports timestep parameter: GET /api/argo/positions?timestep=1 returns drifted positions for Day 2.
-    """
-    # Check for timestep-specific drift file
+    """Returns list of all active Argo profiling float locations."""
     pos_file = DATA_DIR / "argo" / f"positions_t{timestep}.json"
     if not pos_file.exists():
         pos_file = DATA_DIR / "argo" / "positions.json"
-
     if not pos_file.exists():
         raise HTTPException(status_code=404, detail="Argo positions file not found")
     return FileResponse(pos_file, media_type="application/json")
@@ -176,26 +367,127 @@ async def get_argo_positions(
 
 @app.get("/api/argo/profile/{float_id}")
 async def get_argo_profile(float_id: str):
-    """
-    Returns vertical profile data (depths, temperature, salinity) for a specific float.
-    """
+    """Returns vertical profile data for a specific Argo float."""
     clean_id = float_id.replace("/", "_").replace("\\", "_").strip()
     profile_path = DATA_DIR / "argo" / "profiles" / f"{clean_id}.json"
-
     if not profile_path.exists():
         matching = list((DATA_DIR / "argo" / "profiles").glob(f"*{clean_id}*.json"))
         if matching:
             profile_path = matching[0]
         else:
             raise HTTPException(status_code=404, detail=f"Profile for float ID '{float_id}' not found")
-
     return FileResponse(profile_path, media_type="application/json")
 
 
 @app.get("/api/coastline")
 async def get_coastline():
-    """Returns GeoJSON coastline FeatureCollection for geographic 3D boundary rendering."""
+    """Returns GeoJSON coastline FeatureCollection."""
     coast_path = DATA_DIR / "coastline.geojson"
     if not coast_path.exists():
         raise HTTPException(status_code=404, detail="Coastline GeoJSON not found")
     return FileResponse(coast_path, media_type="application/json")
+
+
+# ─── Pipeline Endpoints (v2) ──────────────────────────────────────────────────
+
+@app.get("/api/pipeline/available-dates")
+async def get_available_dates():
+    """
+    Returns all dates that have pre-processed tile data ready.
+    Frontend uses this to populate a date picker and mark available vs. fetch-required dates.
+    """
+    dates = _get_available_dates()
+    return {
+        "available_dates": dates,
+        "count": len(dates),
+        "note": "Dates not in this list will trigger an async HYCOM fetch on request (~5-10 min)"
+    }
+
+
+@app.post("/api/pipeline/fetch")
+async def trigger_fetch(
+    date: str = Query(..., description="Date to fetch: YYYY-MM-DD"),
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Manually triggers HYCOM download + preprocessing for a specific date.
+    Returns a job_id to poll for status.
+    Use this to pre-warm the cache before a demo.
+    """
+    # Validate date
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {date}. Use YYYY-MM-DD.")
+
+    # Check if already cached
+    cached_dates = _get_available_dates()
+    if date in cached_dates:
+        return {
+            "status": "already_cached",
+            "message": f"Data for {date} is already available. No fetch needed.",
+            "date": date
+        }
+
+    # Check if a job already running for this date
+    for job in _JOBS.values():
+        if job["date"] == date and job["status"] in ("queued", "downloading", "processing"):
+            return {
+                "status": "already_running",
+                "job_id": job["job_id"],
+                "message": f"A pipeline job for {date} is already running.",
+                "poll_url": f"/api/pipeline/status/{job['job_id']}"
+            }
+
+    job_id = str(uuid.uuid4())[:8]
+    _JOBS[job_id] = {
+        "job_id": job_id,
+        "date": date,
+        "status": "queued",
+        "message": "Queued for HYCOM download and preprocessing",
+        "started_at": datetime.utcnow().isoformat(),
+        "finished_at": None,
+        "error": None
+    }
+
+    asyncio.create_task(_run_pipeline(job_id, date))
+
+    return {
+        "status": "queued",
+        "job_id": job_id,
+        "date": date,
+        "message": f"Pipeline started for {date}. Estimated time: 5-15 minutes.",
+        "poll_url": f"/api/pipeline/status/{job_id}"
+    }
+
+
+@app.get("/api/pipeline/status/{job_id}")
+async def get_job_status(job_id: str):
+    """
+    Returns current status of an async pipeline job.
+    Status values: queued → downloading → processing → done | error
+    """
+    if job_id not in _JOBS:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found. It may have completed before server restart.")
+
+    job = _JOBS[job_id]
+    return {
+        "job_id": job_id,
+        "date": job["date"],
+        "status": job["status"],
+        "message": job.get("message", ""),
+        "started_at": job.get("started_at"),
+        "finished_at": job.get("finished_at"),
+        "error": job.get("error"),
+        "ready": job["status"] == "done",
+        "data_url": f"/api/model-data?date={job['date']}" if job["status"] == "done" else None
+    }
+
+
+@app.get("/api/pipeline/jobs")
+async def list_all_jobs():
+    """Returns all pipeline jobs (running + completed). Useful for admin/debug."""
+    return {
+        "jobs": list(_JOBS.values()),
+        "total": len(_JOBS)
+    }

@@ -9,6 +9,8 @@ import { ColormapEditor } from './controls/ColormapEditor.js';
 import { TimeAnimator } from './controls/TimeAnimator.js';
 import { Legend } from './controls/Legend.js';
 import { ProfileChart } from './charts/ProfileChart.js';
+import { PipelineManager } from './controls/PipelineManager.js';
+
 import { PLAY_INTERVAL_MS, DEPTH_DEBOUNCE_MS, RAYCAST_THROTTLE_MS } from './utils/constants.js';
 import {
   loadMetadata,
@@ -48,6 +50,23 @@ async function bootstrap() {
   const legend = new Legend('#legend-container');
   const timeAnimator = new TimeAnimator({ totalSteps: 3, intervalMs: PLAY_INTERVAL_MS });
 
+
+  // -- Pipeline Manager (v2): on-demand HYCOM date fetching ------------------
+  const pipelineManager = new PipelineManager({
+    onDateReady: async (dateStr) => {
+      // When a new date's tiles are ready, reload the current view for that date
+      console.info('[Pipeline] Date ' + dateStr + ' ready. Reloading ocean data...');
+      const tileData = await loadModelData(state.variable, state.depth, state.timestep, dateStr);
+      if (tileData) {
+        volumeRenderer.updateData(tileData);
+        legend.update(tileData);
+      }
+    },
+    onError: (msg) => {
+      console.error('[Pipeline] Error:', msg);
+    }
+  });
+  pipelineManager.init();
   const profileChart = new ProfileChart({
     fetchProfile: async (floatId) => {
       const data = await loadArgoProfile(floatId);
