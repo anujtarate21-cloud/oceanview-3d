@@ -207,15 +207,11 @@ async function bootstrap() {
       console.info('[Pipeline] Selected date: ' + dateStr);
       const tsMap = { '2024-09-05': 0, '2024-09-06': 1, '2024-09-07': 2 };
       if (tsMap[dateStr] !== undefined) {
-        state.timestep = tsMap[dateStr];
+        // Use timeAnimator.jumpTo() which properly triggers the UI sync AND dispatches 'time-change'
+        timeAnimator.jumpTo(tsMap[dateStr]);
+      } else {
+        await Promise.all([refreshVolume(), refreshArgoMarkers()]);
       }
-      const timeSlider = document.getElementById('time-slider');
-      if (timeSlider) timeSlider.value = state.timestep;
-      const timeReadout = document.getElementById('time-readout');
-      if (timeReadout) timeReadout.textContent = dateStr + ' (t' + state.timestep + ')';
-
-      // Full visual sync: 3D volume slice, dynamic colorbar, and drifting Argo floats!
-      await Promise.all([refreshVolume(), refreshArgoMarkers()]);
     },
     onError: (msg) => {
       console.error('[Pipeline] Error:', msg);
