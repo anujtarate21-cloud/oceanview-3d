@@ -51,22 +51,7 @@ async function bootstrap() {
   const timeAnimator = new TimeAnimator({ totalSteps: 3, intervalMs: PLAY_INTERVAL_MS });
 
 
-  // -- Pipeline Manager (v2): on-demand HYCOM date fetching ------------------
-  const pipelineManager = new PipelineManager({
-    onDateReady: async (dateStr) => {
-      // When a new date's tiles are ready, reload the current view for that date
-      console.info('[Pipeline] Date ' + dateStr + ' ready. Reloading ocean data...');
-      const tileData = await loadModelData(state.variable, state.depth, state.timestep, dateStr);
-      if (tileData) {
-        volumeRenderer.updateData(tileData);
-        legend.update(tileData);
-      }
-    },
-    onError: (msg) => {
-      console.error('[Pipeline] Error:', msg);
-    }
-  });
-  pipelineManager.init();
+
   const profileChart = new ProfileChart({
     fetchProfile: async (floatId) => {
       const data = await loadArgoProfile(floatId);
@@ -215,6 +200,28 @@ async function bootstrap() {
 
   const geojson = await loadCoastline();
   if (geojson) await coastline.load(geojson);
+
+  // -- Pipeline Manager (v2): on-demand HYCOM date navigation ----------------
+  const pipelineManager = new PipelineManager({
+    onDateReady: async (dateStr) => {
+      console.info('[Pipeline] Selected date: ' + dateStr);
+      const tsMap = { '2024-09-05': 0, '2024-09-06': 1, '2024-09-07': 2 };
+      if (tsMap[dateStr] !== undefined) {
+        state.timestep = tsMap[dateStr];
+      }
+      const timeSlider = document.getElementById('time-slider');
+      if (timeSlider) timeSlider.value = state.timestep;
+      const timeReadout = document.getElementById('time-readout');
+      if (timeReadout) timeReadout.textContent = dateStr + ' (t' + state.timestep + ')';
+
+      // Full visual sync: 3D volume slice, dynamic colorbar, and drifting Argo floats!
+      await Promise.all([refreshVolume(), refreshArgoMarkers()]);
+    },
+    onError: (msg) => {
+      console.error('[Pipeline] Error:', msg);
+    }
+  });
+  pipelineManager.init();
 
   // Hide loading screen once ready
   const loadingScreen = document.getElementById('loading-screen');
