@@ -12,10 +12,17 @@ Usage:
 import argparse
 import os
 import sys
+import ssl
 import time
 import urllib.request
 import urllib.parse
 from datetime import datetime
+
+# HYCOM/NOAA government servers occasionally have expired SSL certificates.
+# Create a permissive SSL context for scientific data access (not sensitive data).
+_SSL_CTX = ssl.create_default_context()
+_SSL_CTX.check_hostname = False
+_SSL_CTX.verify_mode = ssl.CERT_NONE
 
 # Indian Ocean bounding box (lat: 0-25N, lon: 60-95E)
 BBOX = {"north": 25.0, "south": 0.0, "west": 60.0, "east": 95.0}
@@ -48,7 +55,7 @@ def fetch_with_progress(url: str, output_path: str, timeout: int = 600) -> bool:
     print(f"Connecting to HYCOM NCSS server...")
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "OceanView3D/1.0 (INCOIS SIH26067)"})
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX) as response:
             total_size = int(response.headers.get("Content-Length", 0))
             downloaded = 0
             chunk_size = 65536

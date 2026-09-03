@@ -33,7 +33,7 @@ TIMESTEP_DATES = [
     "2024-09-07T09:00:00"
 ]
 
-def preprocess_hycom(input_path, output_dir, step=2, depth_levels=None, num_timesteps=3):
+def preprocess_hycom(input_path, output_dir, step=2, depth_levels=None, num_timesteps=3, date_label=None):
     if depth_levels is None:
         depth_levels = DEFAULT_DEPTH_LEVELS
 
@@ -176,7 +176,10 @@ def preprocess_hycom(input_path, output_dir, step=2, depth_levels=None, num_time
                     "global_max": metadata["var_ranges"][std_name]["max"]
                 }
 
-                filename = f"{std_name}_d{int(actual_depth)}_t{t}.json"
+                if date_label:
+                    filename = f"{std_name}_d{int(actual_depth)}_{date_label}.json"
+                else:
+                    filename = f"{std_name}_d{int(actual_depth)}_t{t}.json"
                 tile_path = os.path.join(tiles_dir, filename)
                 with open(tile_path, 'w', encoding='utf-8') as f:
                     json.dump(tile_data, f)
