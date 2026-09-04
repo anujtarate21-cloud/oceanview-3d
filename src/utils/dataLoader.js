@@ -45,21 +45,31 @@ export async function loadMetadata() {
   return smartFetch('/api/metadata', '/data/metadata.json');
 }
 
-export async function loadModelData(variable, depth, timestep = 0) {
+export async function loadModelData(variable, depth, timestep = 0, date = null) {
   const intDepth = Math.round(Number(depth));
   const varClean = String(variable).toLowerCase().trim();
+  if (date) {
+    const dated = await smartFetch(
+      `/api/model-data?var=${varClean}&depth=${intDepth}&date=${date}`,
+      `/data/tiles/${varClean}_d${intDepth}_${date}.json`
+    );
+    if (dated) return dated;
+  }
   return smartFetch(
     `/api/model-data?var=${varClean}&depth=${intDepth}&timestep=${timestep}`,
     `/data/tiles/${varClean}_d${intDepth}_t${timestep}.json`
   );
 }
 
-export async function loadArgoPositions(timestep = 0) {
+export async function loadArgoPositions(timestep = 0, date = null) {
+  if (date) {
+    const dated = await smartFetch(
+      `/api/argo/positions?date=${date}`,
+      `/data/argo/positions_${date}.json`
+    );
+    if (dated) return dated;
+  }
   const t = Math.round(Number(timestep)) || 0;
-  // Floats drift day to day, so prefer a per-timestep snapshot (mirrors the
-  // model-tile naming convention: {var}_d{depth}_t{timestep}.json). If none
-  // exists yet — the common case, since DEV-B's plan only guarantees a single
-  // positions.json — fall back to the static file so this never breaks.
   const dated = await smartFetch(
     `/api/argo/positions?timestep=${t}`,
     `/data/argo/positions_t${t}.json`

@@ -10,7 +10,7 @@
  */
 
 const POLL_INTERVAL_MS = 5000;
-const API_BASE = "http://localhost:8000";
+const API_BASE = "";
 
 export class PipelineManager {
     /**
@@ -21,8 +21,9 @@ export class PipelineManager {
     constructor({ onDateReady, onError } = {}) {
         this.onDateReady = onDateReady || (() => {});
         this.onError = onError || ((msg) => console.error("[Pipeline]", msg));
-        this.availableDates = [];
-        this.activePolls = {}; // { job_id: intervalId }
+        this.availableDates = ['2024-09-05', '2024-09-06', '2024-09-07'];
+        this.activePolls = {};
+        this.currentDate = '2024-09-05'; // { job_id: intervalId }
         this._injectStyles();
         this._buildUI();
     }
@@ -236,13 +237,16 @@ export class PipelineManager {
      */
     async init() {
         try {
-            const res = await fetch(`${API_BASE}/api/pipeline/available-dates`);
+            const res = await fetch(`/api/pipeline/available-dates?_t=${Date.now()}`, { cache: "no-store" });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            this.availableDates = data.available_dates || [];
+            if (Array.isArray(data.available_dates) && data.available_dates.length > 0) {
+                this.availableDates = [...new Set([...this.availableDates, ...data.available_dates])].sort();
+            }
             this._renderDateChips();
         } catch (e) {
             console.warn("[Pipeline] Could not fetch available dates:", e.message);
+            this._renderDateChips();
         }
     }
 
@@ -252,6 +256,8 @@ export class PipelineManager {
      * - If not cached: triggers pipeline, starts polling
      */
     async requestDate(dateStr) {
+        this.currentDate = dateStr;
+        this._renderDateChips();
         const btn = this.panel.querySelector("#pipeline-fetch-btn");
         btn.disabled = true;
 
@@ -274,6 +280,10 @@ export class PipelineManager {
 
             if (data.status === "already_cached") {
                 this._setStatus("done", `${dateStr} ready.`);
+                if (!this.availableDates.includes(dateStr)) {
+                    this.availableDates = [...new Set([...this.availableDates, dateStr])].sort();
+                    this._renderDateChips();
+                }
                 setTimeout(() => { this._hideStatus(); btn.disabled = false; }, 800);
                 this.onDateReady(dateStr);
                 return;
@@ -321,7 +331,18 @@ export class PipelineManager {
                         clearInterval(intervalId);
                         delete this.activePolls[jobId];
                         this._setStatus("done", `${dateStr} is ready!`, 100);
-                        this.availableDates.push(dateStr);
+                        this.availableDates = [...new Set([...this.availableDates, dateStr])].sort();
+                        try {
+                            const refRes = await fetch(`/api/pipeline/available-dates?_t=${Date.now()}`, { cache: "no-store" });
+                            if (refRes.ok) {
+                                const refData = await refRes.json();
+                                if (Array.isArray(refData.available_dates)) {
+                                    this.availableDates = [...new Set([...this.availableDates, ...refData.available_dates])].sort();
+                                }
+                            }
+                        } catch (refErr) {
+                            console.warn("[Pipeline] Refresh error:", refErr);
+                        }
                         this._renderDateChips();
                         setTimeout(() => {
                             this._hideStatus();
@@ -390,18 +411,21 @@ export class PipelineManager {
 
     _renderDateChips() {
         const container = this.panel.querySelector("#pipeline-date-chips");
+        if (!container) return;
         container.innerHTML = "";
-        if (this.availableDates.length === 0) {
+        const dates = [...new Set(this.availableDates)].sort();
+        if (dates.length === 0) {
             container.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:10px;">None cached yet</span>`;
             return;
         }
-        this.availableDates.slice().reverse().forEach(d => {
+        dates.forEach(d => {
             const chip = document.createElement("button");
-            chip.className = "pipeline-chip";
+            chip.className = `pipeline-chip${this.currentDate === d ? " active" : ""}`;
             chip.textContent = d;
             chip.title = `Load data for ${d}`;
             chip.addEventListener("click", () => {
-                this.panel.querySelector("#pipeline-date-input").value = d;
+                const dateInput = this.panel.querySelector("#pipeline-date-input");
+                if (dateInput) dateInput.value = d;
                 this.requestDate(d);
             });
             container.appendChild(chip);

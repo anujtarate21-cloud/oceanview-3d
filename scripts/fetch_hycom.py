@@ -51,7 +51,7 @@ def build_hycom_url(date_str: str) -> str:
     return f"{HYCOM_NCSS_BASE}?{'&'.join(query_parts)}"
 
 
-def fetch_with_progress(url: str, output_path: str, timeout: int = 600) -> bool:
+def fetch_with_progress(url: str, output_path: str, timeout: int = 30) -> bool:
     print(f"Connecting to HYCOM NCSS server...")
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "OceanView3D/1.0 (INCOIS SIH26067)"})
@@ -78,7 +78,7 @@ def fetch_with_progress(url: str, output_path: str, timeout: int = 600) -> bool:
             print(f"Download complete: {downloaded/1024/1024:.1f}MB in {time.time()-start_time:.1f}s")
             return True
     except Exception as e:
-        print(f"\nError: {e}")
+        print(f"\nError: {e}", file=sys.stderr)
         return False
 
 

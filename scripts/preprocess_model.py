@@ -199,6 +199,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=str, default='public/data', help='Output directory for tiles and metadata')
     parser.add_argument('--step', type=int, default=2, help='Spatial subsampling step (2 = half resolution)')
     parser.add_argument('--timesteps', type=int, default=3, help='Number of timesteps to generate (default: 3)')
+    parser.add_argument('--date-label', type=str, default=None, help='Date label for output filenames (YYYY-MM-DD)')
 
     args = parser.parse_args()
-    preprocess_hycom(args.input, args.output, step=args.step, num_timesteps=args.timesteps)
+    preprocess_hycom(args.input, args.output, step=args.step, num_timesteps=args.timesteps, date_label=args.date_label)

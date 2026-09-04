@@ -29,6 +29,7 @@ const state = {
   depthIndex: 0,
   depth: 0,
   timestep: 0,
+  date: '2024-09-05',
   colormap: 'viridis',
   usingSyntheticData: false,
 };
@@ -148,8 +149,8 @@ async function bootstrap() {
   );
 
   // --- Data Load ---
-  async function fetchTile(variable, depth, timestep) {
-    const tile = await loadModelData(variable, depth, timestep);
+  async function fetchTile(variable, depth, timestep, date = state.date) {
+    const tile = await loadModelData(variable, depth, timestep, date);
     return tile || generateSyntheticTile(variable, depth);
   }
 
@@ -168,7 +169,7 @@ async function bootstrap() {
     clearTimeout(busyTimer);
     if (busyIndicator) busyTimer = setTimeout(() => busyIndicator.classList.add('visible'), 120);
 
-    const tile = await fetchTile(state.variable, state.depth, state.timestep);
+    const tile = await fetchTile(state.variable, state.depth, state.timestep, state.date);
 
     clearTimeout(busyTimer);
     if (busyIndicator) busyIndicator.classList.remove('visible');
@@ -178,12 +179,12 @@ async function bootstrap() {
     drawColorbarWithTile(tile);
   }
 
-  const initialTile = await fetchTile(state.variable, state.depth, state.timestep);
+  const initialTile = await fetchTile(state.variable, state.depth, state.timestep, state.date);
   volumeRenderer.loadDepthSlice(initialTile);
   colorbar.setColormap(state.colormap);
   drawColorbarWithTile(initialTile);
 
-  const positions = (await loadArgoPositions(state.timestep)) || generateSyntheticArgoPositions();
+  const positions = (await loadArgoPositions(state.timestep, state.date)) || generateSyntheticArgoPositions();
   await argoMarkers.load(positions);
 
   // Guards against overlapping requests if the user drags the timestep slider
@@ -191,7 +192,7 @@ async function bootstrap() {
   let argoLoadToken = 0;
   async function refreshArgoMarkers() {
     const token = ++argoLoadToken;
-    const nextPositions = (await loadArgoPositions(state.timestep)) || generateSyntheticArgoPositions();
+    const nextPositions = (await loadArgoPositions(state.timestep, state.date)) || generateSyntheticArgoPositions();
     if (token !== argoLoadToken) return; // superseded by a newer timestep change
     await argoMarkers.load(nextPositions);
     if (token !== argoLoadToken) return;
@@ -202,13 +203,32 @@ async function bootstrap() {
   if (geojson) await coastline.load(geojson);
 
   // -- Pipeline Manager (v2): on-demand HYCOM date navigation ----------------
+  // Dynamic date-to-slider mapping: updated whenever available dates change
+  let allDates = metadata.timestamps?.map(ts => ts.slice(0, 10)) || ['2024-09-05', '2024-09-06', '2024-09-07'];
+
+  function syncSliderWithDates(dates) {
+    if (!dates || dates.length === 0) return;
+    allDates = [...new Set(dates)].sort();
+    timeAnimator.applyMetadata(allDates.length, allDates);
+    const idx = allDates.indexOf(state.date);
+    if (idx >= 0) {
+      state.timestep = idx;
+      timeAnimator.jumpTo(idx);
+    }
+  }
+
   const pipelineManager = new PipelineManager({
     onDateReady: async (dateStr) => {
       console.info('[Pipeline] Selected date: ' + dateStr);
-      const tsMap = { '2024-09-05': 0, '2024-09-06': 1, '2024-09-07': 2 };
-      if (tsMap[dateStr] !== undefined) {
-        // Use timeAnimator.jumpTo() which properly triggers the UI sync AND dispatches 'time-change'
-        timeAnimator.jumpTo(tsMap[dateStr]);
+      state.date = dateStr;
+      // Re-sync slider to all available dates (the list may have grown)
+      if (pipelineManager.availableDates.length > 0) {
+        syncSliderWithDates(pipelineManager.availableDates);
+      }
+      const idx = allDates.indexOf(dateStr);
+      if (idx >= 0) {
+        state.timestep = idx;
+        timeAnimator.jumpTo(idx);
       } else {
         await Promise.all([refreshVolume(), refreshArgoMarkers()]);
       }
@@ -217,7 +237,11 @@ async function bootstrap() {
       console.error('[Pipeline] Error:', msg);
     }
   });
-  pipelineManager.init();
+  await pipelineManager.init();
+  // After init, sync slider to all available dates from backend
+  if (pipelineManager.availableDates.length > 0) {
+    syncSliderWithDates(pipelineManager.availableDates);
+  }
 
   // Hide loading screen once ready
   const loadingScreen = document.getElementById('loading-screen');
@@ -273,6 +297,17 @@ async function bootstrap() {
 
   document.addEventListener('time-change', async (e) => {
     state.timestep = e.detail.timestep;
+    // Map slider position back to a date using the dynamic allDates array
+    if (allDates[state.timestep]) {
+      state.date = allDates[state.timestep];
+      const dateInput = document.getElementById('pipeline-date-input');
+      if (dateInput) dateInput.value = state.date;
+      // Highlight the active chip in PipelineManager
+      if (pipelineManager) {
+        pipelineManager.currentDate = state.date;
+        pipelineManager._renderDateChips();
+      }
+    }
     await Promise.all([refreshVolume(), refreshArgoMarkers()]);
   });
 
