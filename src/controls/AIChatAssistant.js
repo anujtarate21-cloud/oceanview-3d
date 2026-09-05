@@ -1347,11 +1347,15 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       // 6. Timestep / Date (dispatches once without duplicate firing)
       if (fn === 'jump_to_date' || p.timestep !== undefined || p.date) {
         if (p.date) {
-          const dateInput = document.getElementById('pipeline-date-input');
-          const fetchBtn = document.getElementById('pipeline-fetch-btn');
-          if (dateInput && fetchBtn) {
-            dateInput.value = p.date;
-            fetchBtn.click();
+          if (window.pipelineManager) {
+            window.pipelineManager.requestDate(p.date);
+          } else {
+            const dateInput = document.getElementById('pipeline-date-input');
+            const fetchBtn = document.getElementById('pipeline-fetch-btn');
+            if (dateInput && fetchBtn) {
+              dateInput.value = p.date;
+              fetchBtn.click();
+            }
           }
         }
         if (p.timestep !== undefined) {

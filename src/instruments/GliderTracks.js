@@ -3,18 +3,20 @@ import { latLonDepthToXYZ } from '../utils/coordTransform.js';
 
 /**
  * 3D Autonomous Ocean Glider Mission Trajectories (Stretch Feature)
- * Renders undulating sawtooth dive paths (0–1000m) for autonomous ocean gliders
+ * Renders undulating sawtooth dive paths (0-1000m) for autonomous ocean gliders
  * deployed across the Arabian Sea and Bay of Bengal (INCOIS missions).
+ * Synchronizes glider vehicle progress with the active Date Navigator date.
  */
 const _lookTarget = new THREE.Vector3();
 const _tmpPoint = new THREE.Vector3();
 const _tmpTangent = new THREE.Vector3();
 
 export class GliderTracks {
-  constructor(scene) {
+  constructor(scene, initialDate = '2023-03-21') {
     this.scene = scene;
     this.visible = false;
     this.exaggeration = 50;
+    this.currentDate = initialDate;
     this.group = new THREE.Group();
     this.group.name = 'GliderTracksLayer';
     this.group.visible = this.visible;
@@ -48,6 +50,7 @@ export class GliderTracks {
     this.trackMeshes = [];
     this.gliderHeads = [];
     this._buildTracks();
+    this.updateForDate(initialDate);
   }
 
   _buildTracks() {
@@ -60,7 +63,7 @@ export class GliderTracks {
         const lat = mission.startLat + prog * (mission.endLat - mission.startLat);
         const lon = mission.startLon + prog * (mission.endLon - mission.startLon);
 
-        // Sawtooth triangular dive profile from surface (0m) to maxDepth (1000m)
+        // Sawtooth triangular dive profile from surface (0m) to maxDepth
         const phase = (s % 40) / 40;
         const depthNorm = phase < 0.5 ? (phase * 2.0) : ((1.0 - phase) * 2.0);
         const depth = depthNorm * mission.maxDepth;
@@ -94,9 +97,19 @@ export class GliderTracks {
         emissiveIntensity: 0.8,
       });
       const gliderHead = new THREE.Mesh(gliderGeom, gliderMat);
-      gliderHead.userData = { curve, speed: 0.04 + mIdx * 0.01 };
+      gliderHead.userData = { curve, speed: 0.04 + mIdx * 0.01, dateOffset: 0 };
       this.group.add(gliderHead);
       this.gliderHeads.push(gliderHead);
+    });
+  }
+
+  updateForDate(dateStr) {
+    if (!dateStr) return;
+    this.currentDate = dateStr;
+    const parts = String(dateStr).split('-').map(Number);
+    const daySeed = (parts[1] || 1) * 31 + (parts[2] || 1);
+    this.gliderHeads.forEach((head, idx) => {
+      head.userData.dateOffset = (daySeed * (0.04 + idx * 0.025)) % 1.0;
     });
   }
 
@@ -114,6 +127,7 @@ export class GliderTracks {
     this.trackMeshes = [];
     this.gliderHeads = [];
     this._buildTracks();
+    this.updateForDate(this.currentDate);
   }
 
   setVisible(visible) {
@@ -128,7 +142,7 @@ export class GliderTracks {
     this.gliderHeads.forEach((head) => {
       const curve = head.userData.curve;
       if (!curve) return;
-      const t = (sec * head.userData.speed) % 1.0;
+      const t = (sec * head.userData.speed + (head.userData.dateOffset || 0)) % 1.0;
       curve.getPointAt(t, _tmpPoint);
       curve.getTangentAt(t, _tmpTangent);
 

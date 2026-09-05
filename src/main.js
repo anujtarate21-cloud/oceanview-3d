@@ -72,6 +72,9 @@ async function bootstrap() {
 
   const outreachMode = new OutreachMode(oceanScene, {
     onStepChange: (stepState) => {
+      if (stepState.date && window.pipelineManager) {
+        window.pipelineManager.requestDate(stepState.date);
+      }
       if (stepState.variable) {
         state.variable = stepState.variable;
         document.dispatchEvent(new CustomEvent('variable-change', { detail: { variable: stepState.variable } }));
@@ -218,42 +221,150 @@ async function bootstrap() {
   let allDates = metadata.timestamps?.map(ts => ts.slice(0, 10)) || ['2024-09-05', '2024-09-06', '2024-09-07'];
 
   function syncSliderWithDates(dates) {
-    if (!dates || dates.length === 0) return;
+    if (!dates || dates.length === 0) {
+      allDates = [];
+      timeAnimator.applyMetadata(0, []);
+      const slider = document.getElementById('time-slider');
+      if (slider) {
+        slider.min = 0;
+        slider.max = 0;
+        slider.value = 0;
+      }
+      const readout = document.getElementById('time-readout');
+      if (readout) {
+        readout.textContent = state.date ? `${state.date} (Active)` : 'No Cached Timesteps';
+      }
+      return;
+    }
     allDates = [...new Set(dates)].sort();
     timeAnimator.applyMetadata(allDates.length, allDates);
     const idx = allDates.indexOf(state.date);
     if (idx >= 0) {
       state.timestep = idx;
-      timeAnimator.jumpTo(idx);
+      // Update slider UI directly without dispatching time-change event
+      const slider = document.getElementById('time-slider');
+      if (slider) slider.value = idx;
+      const readout = document.getElementById('time-readout');
+      if (readout) {
+        const label = allDates[idx] || `T${idx}`;
+        readout.textContent = `${label} (T${idx + 1}/${allDates.length})`;
+      }
+    } else {
+      const slider = document.getElementById('time-slider');
+      if (slider) slider.value = 0;
+      const readout = document.getElementById('time-readout');
+      if (readout) {
+        readout.textContent = state.date ? `${state.date} (Active)` : `${allDates[0]} (T1/${allDates.length})`;
+      }
+    }
+  }
+
+  function updateSliceStatus() {
+    const sliceEl = document.getElementById('status-active-slice');
+    if (sliceEl) {
+      const varPretty = state.variable.charAt(0).toUpperCase() + state.variable.slice(1);
+      sliceEl.textContent = `Slice: ${varPretty} @ ${state.depth}m · Date: ${state.date || 'Active'}`;
+    }
+    const badge = document.getElementById('legend-active-var-badge');
+    if (badge) {
+      badge.textContent = `${state.variable.toUpperCase()} · ${state.date || 'Active'}`;
+    }
+  }
+
+  let _applyingDate = false;
+
+  async function applyDate(dateStr) {
+    if (!dateStr) return;
+    if (_applyingDate) return;          // re-entry guard
+    _applyingDate = true;
+
+    try {
+      state.date = dateStr;
+
+      // 1. Sync the date-input field (chips are already rendered by PipelineManager)
+      const dateInput = document.getElementById('pipeline-date-input');
+      if (dateInput) dateInput.value = dateStr;
+
+      // 2. Sync timeline slider WITHOUT triggering time-change event
+      const idx = allDates.indexOf(dateStr);
+      if (idx >= 0) {
+        state.timestep = idx;
+        // Update slider and readout UI directly — do NOT call jumpTo
+        // because jumpTo dispatches time-change which loops back here
+        const slider = document.getElementById('time-slider');
+        if (slider) slider.value = idx;
+        const readout = document.getElementById('time-readout');
+        if (readout) {
+          let label = allDates[idx] || `T${idx}`;
+          readout.textContent = `${label} (T${idx + 1}/${allDates.length})`;
+        }
+      }
+
+      // 3. Update 3D Volume slice & In-situ Argo profiling floats
+      await Promise.all([refreshVolume(), refreshArgoMarkers()]);
+
+      // 4. Connect 3D Current Vectors to active date & depth
+      if (currentVectors && currentVectors.updateForDate) {
+        currentVectors.updateForDate(dateStr, state.depth);
+      }
+
+      // 5. Connect 3D Thermocline Isosurface to active date
+      if (thermoclineIsosurface && thermoclineIsosurface.updateForDate) {
+        thermoclineIsosurface.updateForDate(dateStr);
+      }
+
+      // 6. Connect 3D Glider Tracks to active date
+      if (gliderTracks && gliderTracks.updateForDate) {
+        gliderTracks.updateForDate(dateStr);
+      }
+
+      // 7. Connect AI Assistant to active date
+      if (aiAssistant && aiAssistant.setDate) {
+        aiAssistant.setDate(dateStr);
+      }
+
+      // 8. Update status strip and active slice readout
+      updateSliceStatus();
+
+    } finally {
+      _applyingDate = false;
     }
   }
 
   const pipelineManager = new PipelineManager({
     onDateReady: async (dateStr) => {
-      console.info('[Pipeline] Selected date: ' + dateStr);
-      state.date = dateStr;
-      // Re-sync slider to all available dates (the list may have grown)
+      // Sync slider dates if the list grew (new date was fetched)
       if (pipelineManager.availableDates.length > 0) {
         syncSliderWithDates(pipelineManager.availableDates);
       }
-      const idx = allDates.indexOf(dateStr);
-      if (idx >= 0) {
-        state.timestep = idx;
-        timeAnimator.jumpTo(idx);
-      }
-      await Promise.all([refreshVolume(), refreshArgoMarkers()]);
+      await applyDate(dateStr);
+    },
+    onDatesChanged: (dates) => {
+      syncSliderWithDates(dates);
     },
     onError: (msg) => {
       console.error('[Pipeline] Error:', msg);
     }
   });
   window.pipelineManager = pipelineManager;
+  document.addEventListener('cached-dates-changed', (e) => {
+    if (e.detail && Array.isArray(e.detail.dates)) {
+      syncSliderWithDates(e.detail.dates);
+    }
+  });
+
   window.timeAnimator = timeAnimator;
   await pipelineManager.init();
   // After init, sync slider to all available dates from backend
   if (pipelineManager.availableDates.length > 0) {
     syncSliderWithDates(pipelineManager.availableDates);
   }
+  // Initialize all connected layers with initial date
+  if (currentVectors.updateForDate) currentVectors.updateForDate(state.date, state.depth);
+  if (thermoclineIsosurface.updateForDate) thermoclineIsosurface.updateForDate(state.date);
+  if (gliderTracks.updateForDate) gliderTracks.updateForDate(state.date);
+  if (aiAssistant.setDate) aiAssistant.setDate(state.date);
+  updateSliceStatus();
 
   // Hide loading screen once ready
   const loadingScreen = document.getElementById('loading-screen');
@@ -299,6 +410,7 @@ async function bootstrap() {
     }
     volumeRenderer.setColormap(state.colormap);
     colorbar.setColormap(state.colormap);
+    updateSliceStatus();
     await refreshVolume();
   });
 
@@ -306,23 +418,30 @@ async function bootstrap() {
   const debouncedRefreshVolume = debounce(async () => await refreshVolume(), DEPTH_DEBOUNCE_MS);
   document.addEventListener('depth-change', (e) => {
     state.depth = e.detail.depth;
+    if (currentVectors && currentVectors.updateForDate) {
+      currentVectors.updateForDate(state.date, state.depth);
+    }
+    updateSliceStatus();
     debouncedRefreshVolume();
   });
 
   document.addEventListener('time-change', async (e) => {
     state.timestep = e.detail.timestep;
-    // Map slider position back to a date using the dynamic allDates array
     if (allDates[state.timestep]) {
-      state.date = allDates[state.timestep];
+      const targetDate = allDates[state.timestep];
+      // Avoid re-entry: applyDate already has a guard, safe to call
+      state.date = targetDate;
       const dateInput = document.getElementById('pipeline-date-input');
-      if (dateInput) dateInput.value = state.date;
-      // Highlight the active chip in PipelineManager
+      if (dateInput) dateInput.value = targetDate;
       if (pipelineManager) {
-        pipelineManager.currentDate = state.date;
+        pipelineManager.currentDate = targetDate;
         pipelineManager._renderDateChips();
       }
+      await applyDate(targetDate);
+    } else {
+      await Promise.all([refreshVolume(), refreshArgoMarkers()]);
+      updateSliceStatus();
     }
-    await Promise.all([refreshVolume(), refreshArgoMarkers()]);
   });
 
   document.addEventListener('colormap-change', (e) => {

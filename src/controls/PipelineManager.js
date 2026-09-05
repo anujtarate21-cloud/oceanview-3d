@@ -18,7 +18,8 @@ export class PipelineManager {
      * @param {Function} options.onDateReady - Called with (dateStr) when tiles become available
      * @param {Function} options.onError     - Called with (message) on pipeline errors
      */
-    constructor({ onDateReady, onError } = {}) {
+    constructor({ onDateReady, onError, onDatesChanged } = {}) {
+        this.onDatesChanged = onDatesChanged || null;
         this.onDateReady = onDateReady || (() => {});
         this.onError = onError || ((msg) => console.error("[Pipeline]", msg));
         this.defaultDates = [
@@ -63,7 +64,7 @@ export class PipelineManager {
             this.panel.id = "pipeline-panel";
             this.panel.innerHTML = `
                 <div class="pipeline-header">
-                    <span class="pipeline-icon">🌊</span>
+                    <span class="pipeline-icon">&#128197;</span>
                     <span class="pipeline-title">Date Navigator</span>
                     <span class="pipeline-badge" id="pipeline-badge">LIVE</span>
                 </div>
@@ -83,7 +84,7 @@ export class PipelineManager {
                 </div>
                 <div class="pipeline-available-header">
                     <span class="pipeline-available-label">CACHED DATES (${this.availableDates.length}):</span>
-                    <button id="pipeline-reset-cache-btn" class="pipeline-header-action" title="Restore all default cached dates">↺ Reset</button>
+                    <button id="pipeline-reset-cache-btn" class="pipeline-header-action" title="Restore all default cached dates">&#8635; Reset</button>
                 </div>
                 <div id="pipeline-date-chips" class="pipeline-date-chips"></div>
             `;
@@ -135,212 +136,10 @@ export class PipelineManager {
     }
 
     _injectStyles() {
-        if (document.getElementById("pipeline-styles")) return;
-        const style = document.createElement("style");
-        style.id = "pipeline-styles";
-        style.textContent = `
-            #pipeline-panel {
-                background: rgba(10, 10, 46, 0.9);
-                border: 1px solid rgba(0, 212, 170, 0.25);
-                border-radius: 10px;
-                padding: 14px 16px 12px;
-                margin-top: 16px;
-                font-family: 'Inter', 'Segoe UI', sans-serif;
-                font-size: 12px;
-                color: #e0e0e0;
-                backdrop-filter: blur(12px);
-            }
-            .pipeline-header {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 10px;
-            }
-            .pipeline-icon { font-size: 16px; }
-            .pipeline-title {
-                font-size: 13px;
-                font-weight: 600;
-                color: #00d4aa;
-                flex: 1;
-            }
-            .pipeline-badge {
-                font-size: 9px;
-                font-weight: 700;
-                background: rgba(0, 212, 170, 0.15);
-                border: 1px solid rgba(0, 212, 170, 0.4);
-                color: #00d4aa;
-                border-radius: 4px;
-                padding: 2px 6px;
-                letter-spacing: 0.5px;
-            }
-            .pipeline-date-row {
-                display: flex;
-                gap: 6px;
-                margin-bottom: 10px;
-            }
-            #pipeline-date-input {
-                flex: 1;
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(0, 212, 170, 0.3);
-                border-radius: 6px;
-                color: #e0e0e0;
-                padding: 6px 10px;
-                font-size: 12px;
-                outline: none;
-                transition: border-color 0.2s;
-            }
-            #pipeline-date-input:focus {
-                border-color: #00d4aa;
-            }
-            #pipeline-date-input::-webkit-calendar-picker-indicator {
-                filter: invert(1) opacity(0.6);
-                cursor: pointer;
-            }
-            #pipeline-fetch-btn {
-                background: linear-gradient(135deg, #00d4aa, #0099cc);
-                border: none;
-                border-radius: 6px;
-                color: #0a0a2e;
-                font-weight: 700;
-                font-size: 12px;
-                padding: 6px 14px;
-                cursor: pointer;
-                transition: transform 0.15s, opacity 0.2s;
-                white-space: nowrap;
-            }
-            #pipeline-fetch-btn:hover { transform: scale(1.04); }
-            #pipeline-fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-            .pipeline-status { margin-bottom: 10px; }
-            .pipeline-status.hidden { display: none; }
-            .pipeline-progress-track {
-                background: rgba(255,255,255,0.08);
-                border-radius: 4px;
-                height: 5px;
-                overflow: hidden;
-                margin-bottom: 5px;
-            }
-            .pipeline-progress-fill {
-                height: 100%;
-                background: linear-gradient(90deg, #00d4aa, #0099cc);
-                border-radius: 4px;
-                width: 0%;
-                transition: width 0.5s ease;
-                animation: pipeline-pulse 2s ease-in-out infinite;
-            }
-            @keyframes pipeline-pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.6; }
-            }
-            .pipeline-status-text {
-                font-size: 11px;
-                color: #a0c4ff;
-                font-style: italic;
-            }
-            .pipeline-available-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 6px;
-            }
-            .pipeline-available-label {
-                font-size: 10px;
-                color: rgba(255,255,255,0.5);
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .pipeline-header-action {
-                background: transparent;
-                border: none;
-                color: rgba(0, 212, 170, 0.7);
-                font-size: 9.5px;
-                cursor: pointer;
-                padding: 1px 4px;
-                border-radius: 3px;
-                transition: color 0.15s, background 0.15s;
-            }
-            .pipeline-header-action:hover {
-                color: #00d4aa;
-                background: rgba(0, 212, 170, 0.15);
-            }
-            .pipeline-date-chips {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 6px;
-                max-height: 90px;
-                overflow-y: auto;
-                padding-right: 4px;
-                scrollbar-width: thin;
-                scrollbar-color: rgba(0, 212, 170, 0.4) transparent;
-            }
-            .pipeline-date-chips::-webkit-scrollbar {
-                width: 4px;
-            }
-            .pipeline-date-chips::-webkit-scrollbar-track {
-                background: rgba(255, 255, 255, 0.03);
-                border-radius: 2px;
-            }
-            .pipeline-date-chips::-webkit-scrollbar-thumb {
-                background: rgba(0, 212, 170, 0.4);
-                border-radius: 2px;
-            }
-            .pipeline-date-chips::-webkit-scrollbar-thumb:hover {
-                background: rgba(0, 212, 170, 0.7);
-            }
-            .pipeline-chip {
-                background: rgba(0, 212, 170, 0.09);
-                border: 1px solid rgba(0, 212, 170, 0.25);
-                border-radius: 5px;
-                padding: 4px 6px 4px 8px;
-                font-size: 11px;
-                font-family: 'Inter', 'Segoe UI', sans-serif;
-                color: #00d4aa;
-                cursor: pointer;
-                transition: all 0.15s ease;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                min-width: 0;
-                user-select: none;
-            }
-            .pipeline-chip:hover {
-                background: rgba(0, 212, 170, 0.22);
-                border-color: rgba(0, 212, 170, 0.5);
-            }
-            .pipeline-chip.active {
-                background: rgba(0, 212, 170, 0.32);
-                border-color: #00d4aa;
-                font-weight: 600;
-                box-shadow: 0 0 6px rgba(0, 212, 170, 0.25);
-            }
-            .pipeline-chip-text {
-                font-size: 10.5px;
-                font-weight: 500;
-                letter-spacing: 0.2px;
-                white-space: nowrap;
-                flex: 1;
-                text-align: left;
-            }
-            .pipeline-chip-del {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 15px;
-                height: 15px;
-                border-radius: 50%;
-                color: rgba(255, 255, 255, 0.4);
-                font-size: 12px;
-                line-height: 1;
-                margin-left: 4px;
-                transition: color 0.15s, background 0.15s;
-                flex-shrink: 0;
-            }
-            .pipeline-chip-del:hover {
-                color: #ef476f;
-                background: rgba(239, 71, 111, 0.25);
-            }
-        `;
-        document.head.appendChild(style);
+        // Dynamic theme styles are managed by style.css using CSS variables.
+        // Remove stale/hardcoded style tag if present from earlier runs so light/dark themes merge cleanly.
+        const stale = document.getElementById("pipeline-styles");
+        if (stale) stale.remove();
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
@@ -382,6 +181,8 @@ export class PipelineManager {
                 this._hideStatus();
                 btn.disabled = false;
                 this.onDateReady(dateStr);
+                document.dispatchEvent(new CustomEvent('date-ready', { detail: { date: dateStr } }));
+                document.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } }));
             }, 600);
             return;
         }
@@ -401,6 +202,8 @@ export class PipelineManager {
                 }
                 setTimeout(() => { this._hideStatus(); btn.disabled = false; }, 600);
                 this.onDateReady(dateStr);
+                document.dispatchEvent(new CustomEvent('date-ready', { detail: { date: dateStr } }));
+                document.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } }));
                 return;
             }
 
@@ -413,6 +216,8 @@ export class PipelineManager {
                 }
                 setTimeout(() => { this._hideStatus(); btn.disabled = false; }, 600);
                 this.onDateReady(dateStr);
+                document.dispatchEvent(new CustomEvent('date-ready', { detail: { date: dateStr } }));
+                document.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } }));
                 return;
             }
 
@@ -432,6 +237,8 @@ export class PipelineManager {
                 this._hideStatus();
                 btn.disabled = false;
                 this.onDateReady(dateStr);
+                document.dispatchEvent(new CustomEvent('date-ready', { detail: { date: dateStr } }));
+                document.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } }));
             }, 600);
         }
     }
@@ -478,6 +285,8 @@ export class PipelineManager {
                             this._hideStatus();
                             this.panel.querySelector("#pipeline-fetch-btn").disabled = false;
                             this.onDateReady(dateStr);
+                document.dispatchEvent(new CustomEvent('date-ready', { detail: { date: dateStr } }));
+                document.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } }));
                         }, 1200);
                         break;
                     case "error":
@@ -514,20 +323,20 @@ export class PipelineManager {
             fill.style.width = `${progressPct}%`;
         }
 
-        // Color coding
+        // Color coding with theme support
         const colorMap = {
-            queued: "#a0c4ff",
-            downloading: "#ffd166",
-            processing: "#00d4aa",
-            done: "#06d6a0",
-            error: "#ef476f"
+            queued: "var(--text-dim)",
+            downloading: "#d97706",
+            processing: "var(--accent)",
+            done: "#10b981",
+            error: "var(--danger, #ef476f)"
         };
-        statusText.style.color = colorMap[status] || "#a0c4ff";
+        statusText.style.color = colorMap[status] || "var(--text-dim)";
         if (status === "error") {
-            fill.style.background = "#ef476f";
+            fill.style.background = "var(--danger, #ef476f)";
             fill.style.animation = "none";
         } else {
-            fill.style.background = "linear-gradient(90deg, #00d4aa, #0099cc)";
+            fill.style.background = "var(--accent)";
             fill.style.animation = status === "done" ? "none" : "pipeline-pulse 2s ease-in-out infinite";
         }
     }
@@ -537,6 +346,15 @@ export class PipelineManager {
         bar.classList.add("hidden");
         const fill = this.panel.querySelector("#pipeline-progress-fill");
         fill.style.width = "0%";
+    }
+
+    _emitDatesChanged() {
+        if (typeof this.onDatesChanged === 'function') {
+            this.onDatesChanged([...this.availableDates]);
+        }
+        document.dispatchEvent(new CustomEvent('cached-dates-changed', {
+            detail: { dates: [...this.availableDates] }
+        }));
     }
 
     _saveDates() {
@@ -549,6 +367,7 @@ export class PipelineManager {
         if (!this.availableDates.includes(dateStr)) return false;
         this.availableDates = this.availableDates.filter(d => d !== dateStr);
         this._saveDates();
+        this._emitDatesChanged();
         
         // Update header counter
         const label = this.panel.querySelector(".pipeline-available-label");
@@ -580,6 +399,7 @@ export class PipelineManager {
         if (added > 0) {
             this.availableDates = [...new Set(this.availableDates)].sort();
             this._saveDates();
+            this._emitDatesChanged();
             this._renderDateChips();
         }
         return added;
@@ -591,6 +411,7 @@ export class PipelineManager {
         const deletedCount = initialLen - this.availableDates.length;
         if (deletedCount > 0) {
             this._saveDates();
+            this._emitDatesChanged();
             if (!this.availableDates.includes(this.currentDate) && this.availableDates.length > 0) {
                 this.currentDate = this.availableDates[this.availableDates.length - 1];
                 const dateInput = this.panel.querySelector("#pipeline-date-input");
@@ -606,12 +427,14 @@ export class PipelineManager {
     clearAllCached() {
         this.availableDates = [];
         this._saveDates();
+        this._emitDatesChanged();
         this._renderDateChips();
     }
 
     restoreDefaultDates() {
         this.availableDates = [...this.defaultDates].sort();
         this._saveDates();
+        this._emitDatesChanged();
         this._renderDateChips();
         if (!this.availableDates.includes(this.currentDate) && this.availableDates.length > 0) {
             this.currentDate = this.availableDates[0];
@@ -634,8 +457,8 @@ export class PipelineManager {
         if (dates.length === 0) {
             container.innerHTML = `
                 <div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:space-between; padding:4px 0;">
-                    <span style="color:rgba(255,255,255,0.4);font-size:10px;">No cached dates</span>
-                    <button class="pipeline-header-action" onclick="window.pipelineManager?.restoreDefaultDates()" style="color:#00d4aa;">↺ Restore Defaults</button>
+                    <span style="color:var(--text-dim);font-size:10px;">No cached dates</span>
+                    <button class="pipeline-header-action" onclick="window.pipelineManager?.restoreDefaultDates()" style="color:var(--accent);">&#8635; Restore Defaults</button>
                 </div>
             `;
             return;

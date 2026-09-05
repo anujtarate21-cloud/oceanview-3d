@@ -365,47 +365,157 @@ async def get_model_volume(
     }
 
 
+# ---------------------------------------------------------------------------
+# Ocean Mask & Safe Argo Float Position Generator
+# ---------------------------------------------------------------------------
+_ocean_mask_grid = None
+_ocean_mask_rows = 313
+_ocean_mask_cols = 219
+
+def _init_ocean_mask_grid():
+    global _ocean_mask_grid, _ocean_mask_rows, _ocean_mask_cols
+    tile_file = DATA_DIR / "tiles" / "temperature_d0_t0.json"
+    if not tile_file.exists():
+        candidates = list((DATA_DIR / "tiles").glob("temperature_d0_*.json"))
+        if candidates:
+            tile_file = candidates[0]
+    if tile_file.exists():
+        try:
+            with open(tile_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            values = data.get("values", [])
+            _ocean_mask_rows = len(values)
+            _ocean_mask_cols = len(values[0]) if _ocean_mask_rows > 0 else 0
+            _ocean_mask_grid = [[(val is not None) for val in row] for row in values]
+            logger.info(f"Loaded HYCOM ocean mask: {_ocean_mask_rows}x{_ocean_mask_cols}")
+            return
+        except Exception as e:
+            logger.warning(f"Could not load ocean mask from tile: {e}")
+    _ocean_mask_grid = None
+
+def is_safe_ocean_coord(lat: float, lon: float, buffer_cells: int = 1) -> bool:
+    global _ocean_mask_grid
+    if _ocean_mask_grid is None:
+        _init_ocean_mask_grid()
+    if _ocean_mask_grid is not None:
+        i = int(round(lat / 0.08))
+        j = int(round((lon - 60.0) / 0.16))
+        if i < 0 or i >= _ocean_mask_rows or j < 0 or j >= _ocean_mask_cols:
+            return False
+        for di in range(-buffer_cells, buffer_cells + 1):
+            for dj in range(-buffer_cells, buffer_cells + 1):
+                ni, nj = i + di, j + dj
+                if 0 <= ni < _ocean_mask_rows and 0 <= nj < _ocean_mask_cols:
+                    if not _ocean_mask_grid[ni][nj]:
+                        return False
+                else:
+                    return False
+        return True
+
+    # Fallback geometric mask
+    if lat < 0.5 or lat > 24.0 or lon < 60.5 or lon > 94.5:
+        return False
+    if lat >= 23.5:
+        return False
+    if 5.8 <= lat <= 9.8 and 79.5 <= lon <= 82.0:
+        return False
+    if 8.0 <= lat <= 22.0:
+        west = 77.5 - (lat - 8.0) * (77.5 - 72.8) / 14.0
+        east = 77.5 + (lat - 8.0) * (86.5 - 77.5) / 14.0
+        if (west - 0.2) <= lon <= (east + 0.2):
+            return False
+    return True
+
+def compute_safe_argo_positions(base_list: list, date_str: str) -> list:
+    import math
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        ref_dt = datetime(2024, 9, 5)
+        diff_days = (dt - ref_dt).days
+    except Exception:
+        diff_days = 0
+
+    computed = []
+    for p in base_list:
+        lat0 = float(p.get("lat", 10.0))
+        lon0 = float(p.get("lon", 75.0))
+        fid = str(p.get("id", ""))
+        f_hash = (abs(hash(fid)) % 1000) / 1000.0
+
+        # Physical mesoscale eddy orbit: 60-day period, bounded excursion (0.2° to 0.45°)
+        omega = 2.0 * math.pi / 60.0
+        phase = diff_days * omega + f_hash * 2.0 * math.pi
+        amp_lat = 0.22 + 0.12 * math.sin(f_hash * 3.1415)
+        amp_lon = 0.28 + 0.15 * math.cos(f_hash * 3.1415)
+
+        cand_lat = lat0 + amp_lat * math.sin(phase)
+        cand_lon = lon0 + amp_lon * math.cos(phase)
+
+        # Scale back toward known safe station if close to land
+        if not is_safe_ocean_coord(cand_lat, cand_lon, buffer_cells=1):
+            safe_found = False
+            for step in [0.75, 0.5, 0.25, 0.0]:
+                test_lat = lat0 + step * amp_lat * math.sin(phase)
+                test_lon = lon0 + step * amp_lon * math.cos(phase)
+                if is_safe_ocean_coord(test_lat, test_lon, buffer_cells=1):
+                    cand_lat, cand_lon = test_lat, test_lon
+                    safe_found = True
+                    break
+            if not safe_found:
+                cand_lat, cand_lon = lat0, lon0
+
+        item = dict(p)
+        item["lat"] = round(cand_lat, 4)
+        item["lon"] = round(cand_lon, 4)
+        item["date"] = date_str
+        item["timestamp"] = f"{date_str}T12:00:00.000Z"
+        computed.append(item)
+    return computed
+
+
 @app.get("/api/argo/positions")
 async def get_argo_positions(
     timestep: int = Query(0, description="Timestep index (0, 1, 2) for Lagrangian float drift"),
     date: Optional[str] = Query(None, description="Date for float positions")
 ):
-    """Returns list of active Argo profiling float locations with drift applied per date/timestep."""
+    """Returns list of active Argo profiling float locations with drift applied per date/timestep, strictly in ocean."""
+    base_file = DATA_DIR / "argo" / "positions.json"
+    base_floats = []
+    if base_file.exists():
+        try:
+            with open(base_file, "r", encoding="utf-8") as f:
+                base_floats = json.load(f)
+        except Exception as e:
+            logger.warning(f"Could not load base argo positions: {e}")
+
     if date:
         date_pos_file = DATA_DIR / "argo" / f"positions_{date}.json"
         if date_pos_file.exists():
-            return FileResponse(date_pos_file, media_type="application/json")
+            try:
+                with open(date_pos_file, "r", encoding="utf-8") as f:
+                    cached_floats = json.load(f)
+                # Verify that no float in the cached file is on land
+                has_land = any(not is_safe_ocean_coord(f.get("lat", 0), f.get("lon", 0), buffer_cells=0) for f in cached_floats)
+                if not has_land and len(cached_floats) > 0:
+                    return FileResponse(date_pos_file, media_type="application/json")
+            except Exception:
+                pass
+
+        # Legacy fixed timesteps map
         ts_map = {"2024-09-05": 0, "2024-09-06": 1, "2024-09-07": 2}
         if date in ts_map:
             t_file = DATA_DIR / "argo" / f"positions_t{ts_map[date]}.json"
             if t_file.exists():
                 return FileResponse(t_file, media_type="application/json")
-        base_file = DATA_DIR / "argo" / "positions.json"
-        if base_file.exists():
+
+        if base_floats:
             try:
-                import numpy as np
-                with open(base_file, "r", encoding="utf-8") as f:
-                    base_floats = json.load(f)
-                target_dt = datetime.strptime(date, "%Y-%m-%d")
-                delta_days = (target_dt - datetime(2024, 9, 5)).days
-                np.random.seed(42)
-                computed = []
-                for p in base_floats:
-                    lat0 = p["lat"]
-                    lon0 = p["lon"]
-                    drift_u = float(np.sin(np.radians(lat0)) * 0.06 + np.random.normal(0, 0.02))
-                    drift_v = float(np.cos(np.radians(lon0)) * 0.04 + np.random.normal(0, 0.02))
-                    item = dict(p)
-                    item["lat"] = round(float(lat0 + delta_days * drift_v), 4)
-                    item["lon"] = round(float(lon0 + delta_days * drift_u), 4)
-                    item["date"] = date
-                    item["timestamp"] = f"{date}T12:00:00.000Z"
-                    computed.append(item)
+                computed = compute_safe_argo_positions(base_floats, date)
                 with open(date_pos_file, "w", encoding="utf-8") as f:
                     json.dump(computed, f, indent=2)
                 return FileResponse(date_pos_file, media_type="application/json")
             except Exception as e:
-                logger.warning(f"Failed to generate dynamic argo positions for {date}: {e}")
+                logger.warning(f"Failed to generate safe argo positions for {date}: {e}")
 
     pos_file = DATA_DIR / "argo" / f"positions_t{timestep}.json"
     if not pos_file.exists():

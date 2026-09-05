@@ -215,11 +215,23 @@ export function generateSyntheticTile(variable, depth, gridSize = 24) {
 export function generateSyntheticArgoPositions(count = 40) {
   const positions = [];
   for (let i = 0; i < count; i++) {
+    let lat, lon;
+    const region = Math.random();
+    if (region < 0.45) {
+      lat = 4 + Math.random() * 16;
+      lon = 62 + Math.random() * 9.5;
+    } else if (region < 0.85) {
+      lat = 5 + Math.random() * 15;
+      lon = 83 + Math.random() * 10;
+    } else {
+      lat = 1 + Math.random() * 5;
+      lon = 64 + Math.random() * 28;
+    }
     positions.push({
       id: String(2902100 + i),
-      lat: 2 + Math.random() * 21,
-      lon: 62 + Math.random() * 31,
-      date: '2026-08-01',
+      lat: Math.round(lat * 10000) / 10000,
+      lon: Math.round(lon * 10000) / 10000,
+      date: '2024-09-05',
       platform_type: Math.random() > 0.8 ? 'glider' : 'argo',
     });
   }

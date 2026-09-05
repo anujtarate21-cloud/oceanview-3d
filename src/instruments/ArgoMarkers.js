@@ -1,3 +1,23 @@
+/**
+ * Fast client-side geometric test to ensure no float is rendered on land.
+ */
+function isLandCoordinate(lat, lon) {
+  if (lat < 0.2 || lat > 24.5 || lon < 60.2 || lon > 94.8) return true;
+  if (lat >= 23.5) return true;
+  if (lat >= 22.0 && lon >= 70.0 && lon <= 89.0) return true;
+  if (lat >= 5.8 && lat <= 9.8 && lon >= 79.5 && lon <= 82.0) return true;
+  if (lat >= 8.0 && lat <= 22.0) {
+    let west = 77.5 - (lat - 8.0) * 0.7;
+    let east = 77.5 + (lat - 8.0) * 0.6;
+    if (lat >= 13.0) {
+      west = 74.0 - (lat - 13.0) * (74.0 - 72.8) / 9.0;
+      east = 80.5 + (lat - 13.0) * (87.5 - 80.5) / 9.0;
+    }
+    if ((west - 0.20) <= lon && lon <= (east + 0.20)) return true;
+  }
+  return false;
+}
+
 import * as THREE from 'three';
 import { latLonDepthToXYZ } from '../utils/coordTransform.js';
 
@@ -60,8 +80,20 @@ export class ArgoMarkers {
 
     for (let i = 0; i < count; i++) {
       const float = positions[i];
-      const lat = Number(float.lat) || 0;
-      const lon = Number(float.lon) || 0;
+      let lat = Number(float.lat) || 0;
+      let lon = Number(float.lon) || 0;
+
+      // Ensure float is never placed on land
+      if (isLandCoordinate(lat, lon)) {
+        if (lon < 77.0) {
+          lon = Math.min(lon, 72.0); // push west into Arabian Sea
+        } else {
+          lon = Math.max(lon, 83.0); // push east into Bay of Bengal
+        }
+        if (isLandCoordinate(lat, lon)) {
+          lat = Math.min(lat, 6.5); // south into deep equatorial ocean
+        }
+      }
       const xyz = latLonDepthToXYZ(lat, lon, 0, this.coordTransformConfig);
       _dummy.position.set(xyz.x, xyz.y, xyz.z + 0.35);
       _dummy.scale.set(1, 1, 1);

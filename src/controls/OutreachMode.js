@@ -20,7 +20,7 @@ export class OutreachMode {
         text: 'The North Indian Ocean is a uniquely dynamic tropical basin driven by reversing monsoon winds (Southwest and Northeast Monsoons), fueling intense coastal currents and maritime weather patterns.',
         cameraPos: { x: 0, y: -55, z: 45 },
         targetPos: { x: 0, y: 0, z: -4 },
-        state: { variable: 'temperature', depth: 0, colormap: 'thermal', currents: true, isosurface: false, gliders: false },
+        state: { variable: 'temperature', depth: 0, date: '2023-08-31', colormap: 'thermal', currents: true, isosurface: false, gliders: false },
         chips: ['Surface 0m', 'Temp ~29.5°C', 'Air-Sea Heat Flux']
       },
       {
@@ -29,7 +29,7 @@ export class OutreachMode {
         text: 'Just 100 to 200 meters below the warm surface lies the Thermocline — a sharp temperature drop from 29°C down to 15°C. This barrier layer regulates heat exchange and prevents deep cyclone mixing.',
         cameraPos: { x: -25, y: -30, z: 20 },
         targetPos: { x: 0, y: 0, z: -6 },
-        state: { variable: 'temperature', depth: 150, colormap: 'thermal', isosurface: true, currents: false, gliders: false },
+        state: { variable: 'temperature', depth: 150, date: '2023-03-21', colormap: 'thermal', isosurface: true, currents: false, gliders: false },
         chips: ['Depth 150m', 'Gradient 4.8°C/100m', '20°C Isotherm']
       },
       {
@@ -38,7 +38,7 @@ export class OutreachMode {
         text: 'INCOIS and the global Argo program deploy thousands of robotic profiling floats. Each float sinks to 1,000m, drifts for 9 days, dives to 2,000m, and ascends while recording temperature and salinity soundings.',
         cameraPos: { x: 15, y: -25, z: 22 },
         targetPos: { x: 5, y: 5, z: -8 },
-        state: { variable: 'salinity', depth: 200, colormap: 'haline', argo: true, isosurface: false, currents: false, gliders: false },
+        state: { variable: 'salinity', depth: 200, date: '2024-09-05', colormap: 'haline', argo: true, isosurface: false, currents: false, gliders: false },
         chips: ['Argo Soundings', '0–2000m CTD', 'Satellite Uplink']
       },
       {
@@ -47,7 +47,7 @@ export class OutreachMode {
         text: 'Autonomous underwater gliders navigate continuously in 3D sawtooth undulating profiles from surface down to 1000m across the Arabian Sea and Bay of Bengal to monitor marine heatwaves and salinity fronts.',
         cameraPos: { x: 28, y: -15, z: 15 },
         targetPos: { x: 10, y: 10, z: -10 },
-        state: { variable: 'temperature', depth: 500, colormap: 'viridis', gliders: true, isosurface: false, currents: false },
+        state: { variable: 'temperature', depth: 500, date: '2024-08-28', colormap: 'viridis', gliders: true, isosurface: false, currents: false },
         chips: ['Glider Tracks', 'Sawtooth Dives', 'Real-Time Telemetry']
       },
       {
@@ -56,7 +56,7 @@ export class OutreachMode {
         text: 'Massive volume transport occurs along the Somali Current, West India Coastal Current, and the equatorial Wyrtki Jet, advecting heat and nutrients across the entire basin.',
         cameraPos: { x: 0, y: -45, z: 35 },
         targetPos: { x: 0, y: 0, z: -5 },
-        state: { variable: 'temperature', depth: 0, colormap: 'thermal', currents: true, gliders: true, isosurface: false },
+        state: { variable: 'temperature', depth: 0, date: '2024-07-31', colormap: 'thermal', currents: true, gliders: true, isosurface: false },
         chips: ['Current Vectors', 'Somali Jet', 'Wyrtki Jet']
       }
     ];
