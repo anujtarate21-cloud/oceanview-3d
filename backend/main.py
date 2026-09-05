@@ -1,14 +1,15 @@
 """
 main.py - OceanView 3D FastAPI Backend v2.0
 High-performance backend serving pre-processed ocean model JSON tiles, Argo profiles,
-float drift tracking, coastline, and metadata with direct FileResponse streaming,
-HTTP Cache-Control headers, CORS, and GZip compression.
+float drift tracking, coastline, metadata, on-demand pipeline fetch, and AI Ocean Intelligence.
 
-NEW in v2.0:
+Features:
 - Date-based tile routing: ?date=2024-10-12 (maps to nearest timestep or triggers backfill)
 - Async on-demand pipeline: POST /api/pipeline/fetch triggers HYCOM download + preprocess
 - Job status tracking: GET /api/pipeline/status/{job_id}
 - Available dates endpoint: GET /api/pipeline/available-dates
+- AI Ocean Intelligence (FloatChat 2.0): /api/ai/query, /api/chat, /api/ai/report, /api/ai/backtrack, /api/ai/thermocline, /api/ai/upload-dataset
+- Direct FileResponse streaming, HTTP Cache-Control headers, CORS, and GZip compression.
 """
 
 import os
@@ -18,17 +19,18 @@ import asyncio
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from datetime import datetime, date
 import logging
 
-logger = logging.getLogger('uvicorn.error')
-
-from fastapi import FastAPI, HTTPException, Query, Response, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, Response, Request, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
+
+logger = logging.getLogger('uvicorn.error')
 
 app = FastAPI(
     title="OceanView 3D API",
@@ -46,8 +48,8 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         if request.method == "GET" and not request.url.path.endswith("/health"):
-            # Don't cache pipeline status or available-dates (they change when new data is fetched)
-            if "/pipeline/" in request.url.path:
+            # Don't cache pipeline status, available-dates, or AI endpoints
+            if "/pipeline/" in request.url.path or "/ai/" in request.url.path:
                 response.headers["Cache-Control"] = "no-cache, no-store"
             else:
                 response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
@@ -191,7 +193,7 @@ async def _run_pipeline(job_id: str, date_str: str):
 
     try:
         result = await asyncio.create_subprocess_exec(
-            r"C:\Users\admin\Desktop\SIH FINAL PROJECT\env\Scripts\python.exe", str(preprocess_script),
+            sys.executable, str(preprocess_script),
             "--input", str(nc_file),
             "--output", str(DATA_DIR),
             "--date-label", date_str,
@@ -239,7 +241,7 @@ async def get_metadata():
 
 @app.get("/api/model-data")
 async def get_model_data(
-    var: str = Query("temperature", description="Variable name: 'temperature' or 'salinity'"),
+    var: str = Query("temperature", description="Variable name: 'temperature', 'salinity', 'chlorophyll', or 'currents'"),
     depth: int = Query(0, description="Depth level in meters"),
     timestep: int = Query(0, description="Legacy timestep index (0, 1, 2)"),
     date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format (overrides timestep if provided)")
@@ -546,3 +548,112 @@ async def list_all_jobs():
         "jobs": list(_JOBS.values()),
         "total": len(_JOBS)
     }
+
+
+# ─── AI Ocean Intelligence Endpoints (FloatChat 2.0) ──────────────────────────
+
+try:
+    from backend.services.ai_service import process_ai_query
+    from backend.services.netcdf_analyzer import compute_backtrack_report, compute_thermocline_and_water_column_summary
+    from backend.services.file_ingestor import ingest_uploaded_file, UPLOAD_DIR
+except ImportError:
+    try:
+        from services.ai_service import process_ai_query
+        from services.netcdf_analyzer import compute_backtrack_report, compute_thermocline_and_water_column_summary
+        from services.file_ingestor import ingest_uploaded_file, UPLOAD_DIR
+    except ImportError:
+        process_ai_query = None
+        compute_backtrack_report = None
+        compute_thermocline_and_water_column_summary = None
+        ingest_uploaded_file = None
+        UPLOAD_DIR = DATA_DIR
+
+
+class AIQueryRequest(BaseModel):
+    prompt: Optional[str] = None
+    message: Optional[str] = None
+    context: Optional[str] = None
+    current_state: Optional[Dict[str, Any]] = None
+    history: Optional[List[Any]] = None
+
+
+@app.post("/api/ai/query")
+@app.post("/api/chat")
+async def handle_ai_query(req: AIQueryRequest):
+    """
+    Process natural human language queries, generating conversational answers,
+    3D scene control parameter actions, applied feedback chips, and grounded multi-factor reports.
+    """
+    user_prompt = (req.prompt or req.message or "").strip()
+    if not user_prompt:
+        raise HTTPException(status_code=400, detail="Query prompt cannot be empty")
+    
+    if process_ai_query is None:
+        return {
+            "reply": f"AI service is running in static fallback mode. Received: '{user_prompt}'",
+            "action": None
+        }
+    
+    result = await process_ai_query(user_prompt, req.context, req.current_state)
+    return result
+
+
+@app.get("/api/ai/report")
+async def get_oceanographic_report(
+    period: str = Query("today", description="Report period: 'today', 'week', 'cycle'"),
+    timestep: int = Query(0, description="Timestep index (0, 1, 2)"),
+    role: str = Query("general", description="Audience role: 'oceanographer', 'government', 'student', 'researcher', 'general'")
+):
+    """
+    Returns comprehensive multi-factor hydrographic bulletin covering thermal, haline,
+    in-situ Argo soundings, model trust metrics, and temporal evolution tailored to the requested audience role.
+    """
+    try:
+        from backend.services.netcdf_analyzer import compute_multi_factor_report
+    except ImportError:
+        try:
+            from services.netcdf_analyzer import compute_multi_factor_report
+        except ImportError:
+            return {"error": "Analyzer module not available"}
+    return compute_multi_factor_report(period=period, timestep=timestep, role=role)
+
+
+@app.get("/api/ai/backtrack")
+async def get_backtrack_analysis(
+    var: str = Query("temperature", description="Variable name ('temperature' or 'salinity')"),
+    depth: int = Query(0, description="Depth level in meters")
+):
+    """
+    Directly query historical multi-timestep NetCDF backtrack metrics and delta drifts.
+    """
+    if compute_backtrack_report is None:
+        return {"error": "Backtrack service not available"}
+    return compute_backtrack_report(var, depth)
+
+
+@app.get("/api/ai/thermocline")
+async def get_thermocline_analysis():
+    """
+    Returns vertical temperature gradient and thermocline depth analysis across water column.
+    """
+    if compute_thermocline_and_water_column_summary is None:
+        return {"error": "Thermocline analysis service not available"}
+    return compute_thermocline_and_water_column_summary()
+
+
+@app.post("/api/ai/upload-dataset")
+async def handle_dataset_upload(file: UploadFile = File(...)):
+    """
+    Receives user-uploaded NetCDF, CSV, or JSON dataset files, saves them,
+    and returns parsed statistical context for conversational querying.
+    """
+    file_path = UPLOAD_DIR / file.filename
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    if ingest_uploaded_file is None:
+        return {"filename": file.filename, "status": "uploaded"}
+    
+    ingest_result = ingest_uploaded_file(file_path, file.filename)
+    return ingest_result

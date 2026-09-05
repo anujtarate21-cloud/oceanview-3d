@@ -58,7 +58,8 @@ export class OceanScene {
     // Render loop callbacks
     this.updateCallbacks = [];
 
-    // Resize listener
+    // Resize listener — debounced to avoid layout thrash during drag-resize
+    this._resizeTimer = null;
     this._onResize = this._onResize.bind(this);
     window.addEventListener('resize', this._onResize);
 
@@ -81,10 +82,14 @@ export class OceanScene {
    * Internal resize handler.
    */
   _onResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    clearTimeout(this._resizeTimer);
+    this._resizeTimer = setTimeout(() => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      // Keep consistent cap at 1 — matches constructor for max perf on retina
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
+    }, 100);
   }
 
   /**
@@ -100,6 +105,20 @@ export class OceanScene {
     }
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Updates 3D scene background and atmospheric fog color to match active theme & mode.
+   * @param {number} bgColorHex Hex color number (e.g. 0x061426)
+   * @param {number} [fogColorHex] Hex color number for atmospheric fog
+   */
+  updateThemeColors(bgColorHex = 0x061426, fogColorHex = 0x061426) {
+    const col = new THREE.Color(bgColorHex);
+    this.scene.background = col;
+    if (this.scene.fog) {
+      this.scene.fog.color = new THREE.Color(fogColorHex);
+    }
+    this.renderer.setClearColor(col, 1.0);
   }
 
   /**

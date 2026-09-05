@@ -72,14 +72,23 @@ export class ControlPanel {
     document.getElementById('time-section')?.classList.toggle('hidden', timesteps.length <= 1);
     this._updateTimeReadout();
 
-    if (this.els.variable && variables && variables.length) {
-      const previous = this.els.variable.value;
-      const preferred = variables.includes('temperature') ? 'temperature' : variables[0];
-      const selected = variables.includes(previous) ? previous : preferred;
-      this.els.variable.innerHTML = variables
+    if (this.els.variable) {
+      const defaultVars = ['temperature', 'salinity', 'chlorophyll', 'currents'];
+      const combinedVars = Array.isArray(variables) && variables.length
+        ? Array.from(new Set([...variables, ...defaultVars]))
+        : defaultVars;
+      const previous = this.els.variable.value || 'temperature';
+      const selected = combinedVars.includes(previous) ? previous : 'temperature';
+      const labels = {
+        temperature: 'Temperature (°C)',
+        salinity: 'Salinity (PSU)',
+        chlorophyll: 'Chlorophyll-a (mg/m³)',
+        currents: 'Current Velocity (m/s)'
+      };
+      this.els.variable.innerHTML = combinedVars
         .map((v) => {
-          const unit = this._unitFor(v);
-          return `<option value="${v}">${v.charAt(0).toUpperCase() + v.slice(1)} (${unit})</option>`;
+          const label = labels[v] || `${v.charAt(0).toUpperCase() + v.slice(1)} (${this._unitFor(v)})`;
+          return `<option value="${v}">${label}</option>`;
         })
         .join('');
       this.els.variable.value = selected;
@@ -92,6 +101,7 @@ export class ControlPanel {
     if (this.units && this.units[key]) return this.units[key];
     if (key === 'salinity') return 'PSU';
     if (key === 'chlorophyll') return 'mg/m³';
+    if (key === 'currents') return 'm/s';
     return '°C';
   }
 
@@ -219,20 +229,32 @@ export class ControlPanel {
     this.els.playBtn.addEventListener('click', () => this._togglePlay());
 
     // Layer toggles
-    this.els.toggleCoastline.addEventListener('change', (e) => {
+    this.els.toggleCoastline?.addEventListener('change', (e) => {
       this._emit('layer-toggle', { layer: 'coastline', visible: e.target.checked });
     });
-    this.els.toggleArgo.addEventListener('change', (e) => {
+    this.els.toggleArgo?.addEventListener('change', (e) => {
       this._emit('layer-toggle', { layer: 'argo', visible: e.target.checked });
+    });
+    document.getElementById('toggle-currents')?.addEventListener('change', (e) => {
+      this._emit('layer-toggle', { layer: 'currents', visible: e.target.checked });
+    });
+    document.getElementById('toggle-isosurface')?.addEventListener('change', (e) => {
+      this._emit('layer-toggle', { layer: 'isosurface', visible: e.target.checked });
+    });
+    document.getElementById('toggle-gliders')?.addEventListener('change', (e) => {
+      this._emit('layer-toggle', { layer: 'gliders', visible: e.target.checked });
+    });
+    document.getElementById('start-outreach-btn')?.addEventListener('click', () => {
+      this._emit('start-outreach-tour', {});
     });
 
     // Sidebar toggle
-    this.els.toggleSidebarBtn.addEventListener('click', () => {
+    this.els.toggleSidebarBtn?.addEventListener('click', () => {
       this.els.sidebar.classList.toggle('collapsed');
     });
 
     // Outreach toggle
-    this.els.outreachBtn.addEventListener('click', () => {
+    this.els.outreachBtn?.addEventListener('click', () => {
       document.body.classList.toggle('outreach-mode');
       const simplified = document.body.classList.contains('outreach-mode');
       this.els.sidebar.classList.toggle('outreach-simplified', simplified);

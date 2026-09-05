@@ -1,3 +1,5 @@
+import { loadModelData, generateSyntheticTile } from '../utils/dataLoader.js';
+
 /**
  * DepthSlicer manager for handling depth clipping and slice navigation.
  */
@@ -32,10 +34,16 @@ export class DepthSlicer {
   async setDepth(depth, variable = 'temperature', timestep = 0) {
     this.currentDepth = depth;
     try {
-      const response = await fetch(`/data/tiles/${variable}_d${depth}_t${timestep}.json`);
-      if (response.ok) {
-        const tile = await response.json();
-        this.volumeRenderer.updateDepth(tile);
+      let tile = await loadModelData(variable, depth, timestep);
+      if (!tile) {
+        tile = generateSyntheticTile(variable, depth);
+      }
+      if (tile) {
+        if (typeof this.volumeRenderer.loadDepthSlice === 'function') {
+          this.volumeRenderer.loadDepthSlice(tile);
+        } else if (typeof this.volumeRenderer.updateDepth === 'function') {
+          this.volumeRenderer.updateDepth(tile);
+        }
         return tile;
       }
     } catch (err) {

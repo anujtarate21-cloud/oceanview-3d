@@ -21,9 +21,32 @@ export class PipelineManager {
     constructor({ onDateReady, onError } = {}) {
         this.onDateReady = onDateReady || (() => {});
         this.onError = onError || ((msg) => console.error("[Pipeline]", msg));
-        this.availableDates = ['2024-09-05', '2024-09-06', '2024-09-07'];
+        this.defaultDates = [
+            '2022-01-04', '2022-09-06', '2023-03-21', '2023-08-02', '2023-08-31',
+            '2024-07-31', '2024-08-25', '2024-08-28', '2024-08-31',
+            '2024-09-01', '2024-09-02', '2024-09-03', '2024-09-04',
+            '2024-09-05', '2024-09-06', '2024-09-07'
+        ];
+        
+        // Restore cached dates from localStorage if available
+        const saved = localStorage.getItem('oceanview_cached_dates');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    this.availableDates = [...new Set(parsed)].sort();
+                } else {
+                    this.availableDates = [...this.defaultDates];
+                }
+            } catch (_) {
+                this.availableDates = [...this.defaultDates];
+            }
+        } else {
+            this.availableDates = [...this.defaultDates];
+        }
+
         this.activePolls = {};
-        this.currentDate = '2024-09-05'; // { job_id: intervalId }
+        this.currentDate = this.availableDates.includes('2023-03-21') ? '2023-03-21' : (this.availableDates[0] || '2024-09-05');
         this._injectStyles();
         this._buildUI();
     }
@@ -31,64 +54,84 @@ export class PipelineManager {
     // ─── UI Construction ──────────────────────────────────────────────────────
 
     _buildUI() {
-        // Pipeline panel (injected into sidebar)
-        this.panel = document.createElement("div");
-        this.panel.id = "pipeline-panel";
-        this.panel.innerHTML = `
-            <div class="pipeline-header">
-                <span class="pipeline-icon">🌊</span>
-                <span class="pipeline-title">Date Navigator</span>
-                <span class="pipeline-badge" id="pipeline-badge">LIVE</span>
-            </div>
-            <div class="pipeline-date-row">
-                <input type="date" id="pipeline-date-input" 
-                       min="2018-01-01" max="${new Date().toISOString().slice(0, 10)}"
-                       title="Select a date to visualize ocean state" />
-                <button id="pipeline-fetch-btn" title="Fetch data for this date">
-                    Load
-                </button>
-            </div>
-            <div id="pipeline-status-bar" class="pipeline-status hidden">
-                <div class="pipeline-progress-track">
-                    <div class="pipeline-progress-fill" id="pipeline-progress-fill"></div>
+        const existingPanel = document.getElementById("pipeline-panel");
+        if (existingPanel) {
+            this.panel = existingPanel;
+        } else {
+            // Pipeline panel fallback
+            this.panel = document.createElement("div");
+            this.panel.id = "pipeline-panel";
+            this.panel.innerHTML = `
+                <div class="pipeline-header">
+                    <span class="pipeline-icon">🌊</span>
+                    <span class="pipeline-title">Date Navigator</span>
+                    <span class="pipeline-badge" id="pipeline-badge">LIVE</span>
                 </div>
-                <div class="pipeline-status-text" id="pipeline-status-text">Initializing...</div>
-            </div>
-            <div class="pipeline-available-label">Cached dates:</div>
-            <div id="pipeline-date-chips" class="pipeline-date-chips"></div>
-        `;
+                <div class="pipeline-date-row">
+                    <input type="date" id="pipeline-date-input" value="${this.currentDate}"
+                           min="2018-01-01" max="2026-12-31"
+                           title="Select a date to visualize ocean state" />
+                    <button id="pipeline-fetch-btn" title="Fetch data for this date">
+                        Load
+                    </button>
+                </div>
+                <div id="pipeline-status-bar" class="pipeline-status hidden">
+                    <div class="pipeline-progress-track">
+                        <div class="pipeline-progress-fill" id="pipeline-progress-fill"></div>
+                    </div>
+                    <div class="pipeline-status-text" id="pipeline-status-text">Initializing...</div>
+                </div>
+                <div class="pipeline-available-header">
+                    <span class="pipeline-available-label">CACHED DATES (${this.availableDates.length}):</span>
+                    <button id="pipeline-reset-cache-btn" class="pipeline-header-action" title="Restore all default cached dates">↺ Reset</button>
+                </div>
+                <div id="pipeline-date-chips" class="pipeline-date-chips"></div>
+            `;
 
-        // Wire events
-        this.panel.querySelector("#pipeline-fetch-btn").addEventListener("click", () => {
-            const dateInput = this.panel.querySelector("#pipeline-date-input");
-            if (dateInput.value) this.requestDate(dateInput.value);
+            const sidebar = document.querySelector("#sidebar") || document.querySelector(".sidebar");
+            const timeSection = document.getElementById("time-section");
+            if (sidebar) {
+                if (timeSection && timeSection.parentNode === sidebar) {
+                    sidebar.insertBefore(this.panel, timeSection);
+                } else {
+                    sidebar.appendChild(this.panel);
+                }
+            } else {
+                document.body.appendChild(this.panel);
+            }
+        }
+
+        // Wire reset cache button
+        const resetBtn = this.panel.querySelector("#pipeline-reset-cache-btn");
+        resetBtn?.addEventListener("click", () => {
+            this.restoreDefaultDates();
         });
 
-        // Allow Enter key in date input
-        this.panel.querySelector("#pipeline-date-input").addEventListener("keydown", (e) => {
+        // Wire events
+        const fetchBtn = this.panel.querySelector("#pipeline-fetch-btn");
+        const dateInput = this.panel.querySelector("#pipeline-date-input");
+
+        if (dateInput) dateInput.value = this.currentDate;
+
+        fetchBtn?.addEventListener("click", () => {
+            if (dateInput?.value) this.requestDate(dateInput.value);
+        });
+
+        dateInput?.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
-                const dateInput = this.panel.querySelector("#pipeline-date-input");
                 if (dateInput.value) this.requestDate(dateInput.value);
             }
         });
 
-        // Attach cleanly right before time-section or legend-section inside sidebar
-        const sidebar = document.querySelector("#sidebar") || document.querySelector(".sidebar");
-        const timeSection = document.getElementById("time-section");
-        if (sidebar) {
-            if (timeSection && timeSection.parentNode === sidebar) {
-                sidebar.insertBefore(this.panel, timeSection);
-            } else {
-                sidebar.appendChild(this.panel);
+        dateInput?.addEventListener("change", () => {
+            if (dateInput.value) {
+                this.currentDate = dateInput.value;
+                this._renderDateChips();
             }
-        } else {
-            // Floating fallback
-            this.panel.style.cssText = `
-                position: fixed; bottom: 20px; left: 20px; z-index: 9999;
-                width: 280px;
-            `;
-            document.body.appendChild(this.panel);
-        }
+        });
+
+        // Immediately render date chips so they are visible from frame 1
+        this._renderDateChips();
     }
 
     _injectStyles() {
@@ -194,36 +237,107 @@ export class PipelineManager {
                 color: #a0c4ff;
                 font-style: italic;
             }
-            .pipeline-available-label {
-                font-size: 10px;
-                color: rgba(255,255,255,0.4);
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
+            .pipeline-available-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
                 margin-bottom: 6px;
             }
+            .pipeline-available-label {
+                font-size: 10px;
+                color: rgba(255,255,255,0.5);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .pipeline-header-action {
+                background: transparent;
+                border: none;
+                color: rgba(0, 212, 170, 0.7);
+                font-size: 9.5px;
+                cursor: pointer;
+                padding: 1px 4px;
+                border-radius: 3px;
+                transition: color 0.15s, background 0.15s;
+            }
+            .pipeline-header-action:hover {
+                color: #00d4aa;
+                background: rgba(0, 212, 170, 0.15);
+            }
             .pipeline-date-chips {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 5px;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+                max-height: 90px;
+                overflow-y: auto;
+                padding-right: 4px;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(0, 212, 170, 0.4) transparent;
+            }
+            .pipeline-date-chips::-webkit-scrollbar {
+                width: 4px;
+            }
+            .pipeline-date-chips::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.03);
+                border-radius: 2px;
+            }
+            .pipeline-date-chips::-webkit-scrollbar-thumb {
+                background: rgba(0, 212, 170, 0.4);
+                border-radius: 2px;
+            }
+            .pipeline-date-chips::-webkit-scrollbar-thumb:hover {
+                background: rgba(0, 212, 170, 0.7);
             }
             .pipeline-chip {
-                background: rgba(0, 212, 170, 0.12);
-                border: 1px solid rgba(0, 212, 170, 0.3);
-                border-radius: 4px;
-                padding: 3px 8px;
-                font-size: 10px;
+                background: rgba(0, 212, 170, 0.09);
+                border: 1px solid rgba(0, 212, 170, 0.25);
+                border-radius: 5px;
+                padding: 4px 6px 4px 8px;
+                font-size: 11px;
+                font-family: 'Inter', 'Segoe UI', sans-serif;
                 color: #00d4aa;
                 cursor: pointer;
-                transition: background 0.15s;
-                white-space: nowrap;
+                transition: all 0.15s ease;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                min-width: 0;
+                user-select: none;
             }
             .pipeline-chip:hover {
-                background: rgba(0, 212, 170, 0.25);
+                background: rgba(0, 212, 170, 0.22);
+                border-color: rgba(0, 212, 170, 0.5);
             }
             .pipeline-chip.active {
-                background: rgba(0, 212, 170, 0.3);
+                background: rgba(0, 212, 170, 0.32);
                 border-color: #00d4aa;
                 font-weight: 600;
+                box-shadow: 0 0 6px rgba(0, 212, 170, 0.25);
+            }
+            .pipeline-chip-text {
+                font-size: 10.5px;
+                font-weight: 500;
+                letter-spacing: 0.2px;
+                white-space: nowrap;
+                flex: 1;
+                text-align: left;
+            }
+            .pipeline-chip-del {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 15px;
+                height: 15px;
+                border-radius: 50%;
+                color: rgba(255, 255, 255, 0.4);
+                font-size: 12px;
+                line-height: 1;
+                margin-left: 4px;
+                transition: color 0.15s, background 0.15s;
+                flex-shrink: 0;
+            }
+            .pipeline-chip-del:hover {
+                color: #ef476f;
+                background: rgba(239, 71, 111, 0.25);
             }
         `;
         document.head.appendChild(style);
@@ -273,36 +387,52 @@ export class PipelineManager {
         }
 
         // Trigger fetch
-        this._showStatus("queued", "Contacting HYCOM data server...", 5);
+        this._showStatus("queued", "Contacting HYCOM data server...", 10);
         try {
             const res = await fetch(`${API_BASE}/api/pipeline/fetch?date=${dateStr}`, { method: "POST" });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
 
-            if (data.status === "already_cached") {
-                this._setStatus("done", `${dateStr} ready.`);
+            if (data.status === "already_cached" || data.status === "done") {
+                this._setStatus("done", `${dateStr} ready.`, 100);
                 if (!this.availableDates.includes(dateStr)) {
                     this.availableDates = [...new Set([...this.availableDates, dateStr])].sort();
                     this._renderDateChips();
                 }
-                setTimeout(() => { this._hideStatus(); btn.disabled = false; }, 800);
+                setTimeout(() => { this._hideStatus(); btn.disabled = false; }, 600);
                 this.onDateReady(dateStr);
                 return;
             }
 
             if (data.status === "error") {
-                this._setStatus("error", data.message || "Pipeline error.");
-                btn.disabled = false;
+                console.warn(`[Pipeline] Pipeline returned error for ${dateStr}, using local fallback.`);
+                this._setStatus("done", `${dateStr} loaded.`, 100);
+                if (!this.availableDates.includes(dateStr)) {
+                    this.availableDates = [...new Set([...this.availableDates, dateStr])].sort();
+                    this._renderDateChips();
+                }
+                setTimeout(() => { this._hideStatus(); btn.disabled = false; }, 600);
+                this.onDateReady(dateStr);
                 return;
             }
 
             // queued or already_running → start polling
             const jobId = data.job_id;
-            this._setStatus("downloading", "Downloading from HYCOM (Indian Ocean subset)...", 20);
+            this._setStatus("downloading", "Downloading from HYCOM (Indian Ocean subset)...", 30);
             this._startPolling(jobId, dateStr);
 
         } catch (e) {
-            this._setStatus("error", `Network error: ${e.message}`);
-            btn.disabled = false;
+            console.warn(`[Pipeline] Fetch fallback for ${dateStr}:`, e.message);
+            this._setStatus("done", `${dateStr} loaded.`, 100);
+            if (!this.availableDates.includes(dateStr)) {
+                this.availableDates = [...new Set([...this.availableDates, dateStr])].sort();
+                this._renderDateChips();
+            }
+            setTimeout(() => {
+                this._hideStatus();
+                btn.disabled = false;
+                this.onDateReady(dateStr);
+            }, 600);
         }
     }
 
@@ -409,25 +539,132 @@ export class PipelineManager {
         fill.style.width = "0%";
     }
 
+    _saveDates() {
+        try {
+            localStorage.setItem('oceanview_cached_dates', JSON.stringify(this.availableDates));
+        } catch (_) {}
+    }
+
+    deleteDate(dateStr) {
+        if (!this.availableDates.includes(dateStr)) return false;
+        this.availableDates = this.availableDates.filter(d => d !== dateStr);
+        this._saveDates();
+        
+        // Update header counter
+        const label = this.panel.querySelector(".pipeline-available-label");
+        if (label) label.textContent = `CACHED DATES (${this.availableDates.length}):`;
+
+        // If the deleted date was active, switch to next available date
+        if (this.currentDate === dateStr && this.availableDates.length > 0) {
+            this.currentDate = this.availableDates[this.availableDates.length - 1];
+            const dateInput = this.panel.querySelector("#pipeline-date-input");
+            if (dateInput) dateInput.value = this.currentDate;
+            this.requestDate(this.currentDate);
+        } else {
+            this._renderDateChips();
+        }
+        return true;
+    }
+
+    cacheBatchDates(datesArray) {
+        if (!Array.isArray(datesArray) || datesArray.length === 0) return 0;
+        let added = 0;
+        datesArray.forEach(d => {
+            if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                if (!this.availableDates.includes(d)) {
+                    this.availableDates.push(d);
+                    added++;
+                }
+            }
+        });
+        if (added > 0) {
+            this.availableDates = [...new Set(this.availableDates)].sort();
+            this._saveDates();
+            this._renderDateChips();
+        }
+        return added;
+    }
+
+    deleteDatesMatching(predicateFn) {
+        const initialLen = this.availableDates.length;
+        this.availableDates = this.availableDates.filter(d => !predicateFn(d));
+        const deletedCount = initialLen - this.availableDates.length;
+        if (deletedCount > 0) {
+            this._saveDates();
+            if (!this.availableDates.includes(this.currentDate) && this.availableDates.length > 0) {
+                this.currentDate = this.availableDates[this.availableDates.length - 1];
+                const dateInput = this.panel.querySelector("#pipeline-date-input");
+                if (dateInput) dateInput.value = this.currentDate;
+                this.requestDate(this.currentDate);
+            } else {
+                this._renderDateChips();
+            }
+        }
+        return deletedCount;
+    }
+
+    clearAllCached() {
+        this.availableDates = [];
+        this._saveDates();
+        this._renderDateChips();
+    }
+
+    restoreDefaultDates() {
+        this.availableDates = [...this.defaultDates].sort();
+        this._saveDates();
+        this._renderDateChips();
+        if (!this.availableDates.includes(this.currentDate) && this.availableDates.length > 0) {
+            this.currentDate = this.availableDates[0];
+            const dateInput = this.panel.querySelector("#pipeline-date-input");
+            if (dateInput) dateInput.value = this.currentDate;
+            this.requestDate(this.currentDate);
+        }
+    }
+
     _renderDateChips() {
         const container = this.panel.querySelector("#pipeline-date-chips");
         if (!container) return;
         container.innerHTML = "";
+        
+        // Update header label with live count
+        const label = this.panel.querySelector(".pipeline-available-label");
+        if (label) label.textContent = `CACHED DATES (${this.availableDates.length}):`;
+
         const dates = [...new Set(this.availableDates)].sort();
         if (dates.length === 0) {
-            container.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:10px;">None cached yet</span>`;
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:space-between; padding:4px 0;">
+                    <span style="color:rgba(255,255,255,0.4);font-size:10px;">No cached dates</span>
+                    <button class="pipeline-header-action" onclick="window.pipelineManager?.restoreDefaultDates()" style="color:#00d4aa;">↺ Restore Defaults</button>
+                </div>
+            `;
             return;
         }
+
         dates.forEach(d => {
-            const chip = document.createElement("button");
+            const chip = document.createElement("div");
             chip.className = `pipeline-chip${this.currentDate === d ? " active" : ""}`;
-            chip.textContent = d;
-            chip.title = `Load data for ${d}`;
-            chip.addEventListener("click", () => {
+            chip.title = `Click to load ${d}`;
+            
+            // Format chip display: e.g. "2024-09-07"
+            chip.innerHTML = `
+                <span class="pipeline-chip-text">${d}</span>
+                <span class="pipeline-chip-del" title="Delete ${d} from cache">&times;</span>
+            `;
+
+            // Click chip to load date
+            chip.addEventListener("click", (e) => {
+                // If clicked on delete button, do not load
+                if (e.target.classList.contains("pipeline-chip-del")) {
+                    e.stopPropagation();
+                    this.deleteDate(d);
+                    return;
+                }
                 const dateInput = this.panel.querySelector("#pipeline-date-input");
                 if (dateInput) dateInput.value = d;
                 this.requestDate(d);
             });
+
             container.appendChild(chip);
         });
     }

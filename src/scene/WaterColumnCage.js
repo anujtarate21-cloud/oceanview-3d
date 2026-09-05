@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { latLonDepthToXYZ, getDepthZ } from '../utils/coordTransform.js';
 
 /**
- * WaterColumnCage.js — 3D Bounding Box and Depth Ruler for the Indian Ocean Basin
+ * WaterColumnCage.js — 3D Bounding Box, Depth Ruler and Coordinate Grid for Indian Ocean Basin
  *
  * Renders:
  *  - 4 vertical corner depth pillars (from Surface 0m to Seafloor 5000m)
- *  - Surface perimeter frame (0m)
- *  - Seafloor perimeter frame & grid (5000m)
+ *  - Surface perimeter frame (0m) & surface geographic graticule grid
+ *  - Seafloor perimeter frame & bathymetric grid (5000m)
  *  - Intermediate depth level guide rings (200m thermocline, 1000m intermediate, 2000m deep)
+ *  - High-contrast color and opacity switching for all 5 Light themes + Dark mode
  *  - Real-time vertical scaling when vertical exaggeration changes
  */
 export class WaterColumnCage {
@@ -39,31 +40,39 @@ export class WaterColumnCage {
     const baseZ5000 = getDepthZ(5000, 50); // base Z for 5000m at 50x = -15.0
 
     // Material for cage borders and vertical pillars
-    const pillarMat = new THREE.LineBasicMaterial({
+    this.pillarMat = new THREE.LineBasicMaterial({
       color: 0x00d4aa,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.6,
+      linewidth: 2,
     });
 
-    const surfaceMat = new THREE.LineBasicMaterial({
+    this.surfaceMat = new THREE.LineBasicMaterial({
       color: 0x00d4aa,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.85,
+      linewidth: 2,
     });
 
-    const guideMat = new THREE.LineBasicMaterial({
-      color: 0x4a5584,
+    this.surfaceGridMat = new THREE.LineBasicMaterial({
+      color: 0x00d4aa,
       transparent: true,
       opacity: 0.35,
     });
 
-    const floorMat = new THREE.LineBasicMaterial({
-      color: 0x1e295d,
+    this.guideMat = new THREE.LineBasicMaterial({
+      color: 0x4a5584,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.45,
     });
 
-    // 1. Surface Border (0m)
+    this.floorMat = new THREE.LineBasicMaterial({
+      color: 0x1e295d,
+      transparent: true,
+      opacity: 0.6,
+    });
+
+    // 1. Surface Outer Border (0m)
     const surfacePts = [
       new THREE.Vector3(cNW.x, cNW.y, 0),
       new THREE.Vector3(cNE.x, cNE.y, 0),
@@ -72,19 +81,36 @@ export class WaterColumnCage {
       new THREE.Vector3(cNW.x, cNW.y, 0),
     ];
     const surfaceGeo = new THREE.BufferGeometry().setFromPoints(surfacePts);
-    this.group.add(new THREE.Line(surfaceGeo, surfaceMat));
+    this.group.add(new THREE.Line(surfaceGeo, this.surfaceMat));
 
-    // 2. Vertical Corner Pillars (Unit length from Z=0 to Z=baseZ5000)
+    // 2. Surface Coordinate Grid (Every 5° Lat / Lon)
+    const surfGridPts = [];
+    for (let lat = 5; lat <= 20; lat += 5) {
+      const p1 = latLonDepthToXYZ(lat, this.minLon, 0);
+      const p2 = latLonDepthToXYZ(lat, this.maxLon, 0);
+      surfGridPts.push(new THREE.Vector3(p1.x, p1.y, 0.05));
+      surfGridPts.push(new THREE.Vector3(p2.x, p2.y, 0.05));
+    }
+    for (let lon = 65; lon <= 90; lon += 5) {
+      const p1 = latLonDepthToXYZ(this.minLat, lon, 0);
+      const p2 = latLonDepthToXYZ(this.maxLat, lon, 0);
+      surfGridPts.push(new THREE.Vector3(p1.x, p1.y, 0.05));
+      surfGridPts.push(new THREE.Vector3(p2.x, p2.y, 0.05));
+    }
+    const surfGridGeo = new THREE.BufferGeometry().setFromPoints(surfGridPts);
+    this.group.add(new THREE.LineSegments(surfGridGeo, this.surfaceGridMat));
+
+    // 3. Vertical Corner Pillars (Unit length from Z=0 to Z=baseZ5000)
     for (const c of corners) {
       const pillarPts = [
         new THREE.Vector3(c.x, c.y, 0),
         new THREE.Vector3(c.x, c.y, baseZ5000),
       ];
       const pillarGeo = new THREE.BufferGeometry().setFromPoints(pillarPts);
-      this.group.add(new THREE.Line(pillarGeo, pillarMat));
+      this.group.add(new THREE.Line(pillarGeo, this.pillarMat));
     }
 
-    // 3. Intermediate Depth Level Rings (200m, 1000m, 2000m, 5000m)
+    // 4. Intermediate Depth Level Rings (200m thermocline, 1000m, 2000m, 5000m seafloor)
     for (const d of [200, 1000, 2000, 5000]) {
       const z = getDepthZ(d, 50);
       const ringPts = [
@@ -95,20 +121,18 @@ export class WaterColumnCage {
         new THREE.Vector3(cNW.x, cNW.y, z),
       ];
       const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
-      const mat = d === 5000 ? floorMat : guideMat;
+      const mat = d === 5000 ? this.floorMat : this.guideMat;
       this.group.add(new THREE.Line(ringGeo, mat));
     }
 
-    // 4. Subtle Seafloor Grid (5000m)
+    // 5. Seafloor Bathymetric Grid (5000m)
     const floorGridPts = [];
-    // Lat lines at floor
     for (let lat = 5; lat <= 20; lat += 5) {
       const p1 = latLonDepthToXYZ(lat, this.minLon, 0);
       const p2 = latLonDepthToXYZ(lat, this.maxLon, 0);
       floorGridPts.push(new THREE.Vector3(p1.x, p1.y, baseZ5000));
       floorGridPts.push(new THREE.Vector3(p2.x, p2.y, baseZ5000));
     }
-    // Lon lines at floor
     for (let lon = 65; lon <= 90; lon += 5) {
       const p1 = latLonDepthToXYZ(this.minLat, lon, 0);
       const p2 = latLonDepthToXYZ(this.maxLat, lon, 0);
@@ -116,7 +140,42 @@ export class WaterColumnCage {
       floorGridPts.push(new THREE.Vector3(p2.x, p2.y, baseZ5000));
     }
     const floorGridGeo = new THREE.BufferGeometry().setFromPoints(floorGridPts);
-    this.group.add(new THREE.LineSegments(floorGridGeo, floorMat));
+    this.group.add(new THREE.LineSegments(floorGridGeo, this.floorMat));
+  }
+
+  /**
+   * Updates cage, depth ruler and grid colors based on active theme & light/dark mode.
+   * @param {number|string} primaryHex Accent/surface frame color
+   * @param {number|string} guideHex Intermediate depth ring color
+   * @param {number|string} gridHex Surface & seafloor coordinate grid color
+   * @param {boolean} [isLight] Whether light mode is active
+   */
+  updateThemeColor(primaryHex = 0x00d4aa, guideHex = 0x4a5584, gridHex = 0x1e295d, isLight = false) {
+    if (this.surfaceMat) {
+      this.surfaceMat.color.set(primaryHex);
+      this.surfaceMat.opacity = isLight ? 0.95 : 0.85;
+      this.surfaceMat.needsUpdate = true;
+    }
+    if (this.pillarMat) {
+      this.pillarMat.color.set(primaryHex);
+      this.pillarMat.opacity = isLight ? 0.85 : 0.60;
+      this.pillarMat.needsUpdate = true;
+    }
+    if (this.surfaceGridMat) {
+      this.surfaceGridMat.color.set(gridHex);
+      this.surfaceGridMat.opacity = isLight ? 0.55 : 0.35;
+      this.surfaceGridMat.needsUpdate = true;
+    }
+    if (this.guideMat) {
+      this.guideMat.color.set(guideHex);
+      this.guideMat.opacity = isLight ? 0.80 : 0.45;
+      this.guideMat.needsUpdate = true;
+    }
+    if (this.floorMat) {
+      this.floorMat.color.set(gridHex);
+      this.floorMat.opacity = isLight ? 0.85 : 0.60;
+      this.floorMat.needsUpdate = true;
+    }
   }
 
   /**

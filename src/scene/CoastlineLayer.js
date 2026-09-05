@@ -30,7 +30,7 @@ export class CoastlineLayer {
       geojson = urlOrGeojson;
     }
 
-    const material = new THREE.LineBasicMaterial({
+    this.material = new THREE.LineBasicMaterial({
       color: 0xffffff,
       linewidth: 2,
       transparent: true,
@@ -41,13 +41,12 @@ export class CoastlineLayer {
       const points = [];
       for (const [lon, lat] of coords) {
         const xyz = latLonDepthToXYZ(lat, lon, 0, this.coordTransformConfig);
-        // Same fix as ArgoMarkers.js: depth lives on Z, so nudge Z (not Y)
-        // to lift the coastline slightly above the ocean surface mesh.
+        // Depth lives on Z, so lift slightly above surface
         points.push(new THREE.Vector3(xyz.x, xyz.y, xyz.z + 0.1));
       }
       if (points.length < 2) return;
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(geometry, material);
+      const line = new THREE.Line(geometry, this.material);
       this.group.add(line);
       this.lines.push({ line, geometry });
     };
@@ -70,6 +69,19 @@ export class CoastlineLayer {
           }
         }
       }
+    }
+  }
+
+  /**
+   * Updates coastline color and opacity to match active theme.
+   * @param {number|string} colorHex Hex color
+   * @param {number} [opacity]
+   */
+  updateThemeColor(colorHex = 0xffffff, opacity = 0.85) {
+    if (this.material) {
+      this.material.color.set(colorHex);
+      this.material.opacity = opacity;
+      this.material.needsUpdate = true;
     }
   }
 

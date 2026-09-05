@@ -148,9 +148,9 @@ export class TimeAnimator {
     if (this._slider)  this._slider.value   = this.current;
     if (this._playBtn) this._playBtn.textContent = this.isPlaying ? '⏸' : '▶';
     if (this._readout) {
-      let label = this.timestamps[this.current] || `t${this.current}`;
-      if (label.includes('T')) label = label.split('T')[0];
-      this._readout.textContent = `${label} (t${this.current})`;
+      let label = this.timestamps[this.current] || `T${this.current}`;
+      if (label.includes('T') && label.length > 10) label = label.split('T')[0];
+      this._readout.textContent = `${label} (T${this.current})`;
     }
   }
 

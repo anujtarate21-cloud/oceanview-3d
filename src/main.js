@@ -1,17 +1,23 @@
-import * as THREE from 'three';
 import { OceanScene } from './scene/OceanScene.js';
 import { VolumeRenderer } from './scene/VolumeRenderer.js';
 import { CoastlineLayer } from './scene/CoastlineLayer.js';
 import { WaterColumnCage } from './scene/WaterColumnCage.js';
+import { DepthSlicer } from './scene/DepthSlicer.js';
+import { CurrentVectors } from './scene/CurrentVectors.js';
+import { ThermoclineIsosurface } from './scene/ThermoclineIsosurface.js';
+import { GliderTracks } from './instruments/GliderTracks.js';
 import { ArgoMarkers } from './instruments/ArgoMarkers.js';
+import { ArgoInteraction } from './instruments/ArgoInteraction.js';
 import { ControlPanel } from './controls/ControlPanel.js';
 import { ColormapEditor } from './controls/ColormapEditor.js';
 import { TimeAnimator } from './controls/TimeAnimator.js';
 import { Legend } from './controls/Legend.js';
-import { ProfileChart } from './charts/ProfileChart.js';
+import { AIChatAssistant } from './controls/AIChatAssistant.js';
+import { ThemeManager } from './controls/ThemeManager.js';
+import { OutreachMode } from './controls/OutreachMode.js';
 import { PipelineManager } from './controls/PipelineManager.js';
-
-import { PLAY_INTERVAL_MS, DEPTH_DEBOUNCE_MS, RAYCAST_THROTTLE_MS } from './utils/constants.js';
+import { ProfileChart } from './charts/ProfileChart.js';
+import { PLAY_INTERVAL_MS, DEPTH_DEBOUNCE_MS } from './utils/constants.js';
 import {
   loadMetadata,
   loadModelData,
@@ -28,8 +34,8 @@ const state = {
   variable: 'temperature',
   depthIndex: 0,
   depth: 0,
-  timestep: 0,
-  date: '2024-09-05',
+  timestep: 2,
+  date: '2023-03-21',
   colormap: 'viridis',
   usingSyntheticData: false,
 };
@@ -43,83 +49,69 @@ async function bootstrap() {
   const oceanScene = new OceanScene(canvas);
   const waterColumnCage = new WaterColumnCage(oceanScene.scene);
   const volumeRenderer = new VolumeRenderer(oceanScene.scene, state.colormap);
+  const depthSlicer = new DepthSlicer(volumeRenderer);
   const coastline = new CoastlineLayer(oceanScene.scene);
+  const currentVectors = new CurrentVectors(oceanScene.scene);
+  const thermoclineIsosurface = new ThermoclineIsosurface(oceanScene.scene);
+  const gliderTracks = new GliderTracks(oceanScene.scene);
   const argoMarkers = new ArgoMarkers(oceanScene.scene);
+  const argoInteraction = new ArgoInteraction(canvas, oceanScene.camera, argoMarkers, {
+    tooltip: document.getElementById('argo-tooltip'),
+    coordsEl: document.getElementById('status-coords'),
+  });
 
   const controlPanel = new ControlPanel();
   const colorbar = new ColormapEditor();
-  const legend = new Legend('#legend-container');
+  const legend = new Legend('#top-left-legend #legend-container');
+  const themeManager = new ThemeManager({ oceanScene });
+  const aiAssistant = new AIChatAssistant({
+    getState: () => ({ variable: state.variable, depth: state.depth, timestep: state.timestep, date: state.date }),
+    themeManager,
+  });
   const timeAnimator = new TimeAnimator({ totalSteps: 3, intervalMs: PLAY_INTERVAL_MS });
 
-
+  const outreachMode = new OutreachMode(oceanScene, {
+    onStepChange: (stepState) => {
+      if (stepState.variable) {
+        state.variable = stepState.variable;
+        document.dispatchEvent(new CustomEvent('variable-change', { detail: { variable: stepState.variable } }));
+      }
+      if (stepState.depth !== undefined) {
+        controlPanel.setDepth(stepState.depth);
+      }
+      if (stepState.currents !== undefined) {
+        currentVectors.setVisible(stepState.currents);
+        const chk = document.getElementById('toggle-currents');
+        if (chk) chk.checked = stepState.currents;
+      }
+      if (stepState.isosurface !== undefined) {
+        thermoclineIsosurface.setVisible(stepState.isosurface);
+        const chk = document.getElementById('toggle-isosurface');
+        if (chk) chk.checked = stepState.isosurface;
+      }
+      if (stepState.gliders !== undefined) {
+        gliderTracks.setVisible(stepState.gliders);
+        const chk = document.getElementById('toggle-gliders');
+        if (chk) chk.checked = stepState.gliders;
+      }
+      if (stepState.argo !== undefined) {
+        argoMarkers.setVisible(stepState.argo);
+        const chk = document.getElementById('toggle-argo');
+        if (chk) chk.checked = stepState.argo;
+      }
+    }
+  });
 
   const profileChart = new ProfileChart({
     fetchProfile: async (floatId) => {
       const data = await loadArgoProfile(floatId);
       if (data) return data;
-      const marker = argoMarkers.getMarkers().find((m) => m.userData.float_id === floatId || m.userData.id === floatId);
-      const lat = marker?.userData.lat ?? 10;
-      const lon = marker?.userData.lon ?? 75;
+      // Look up position from proxy markers array
+      const proxy = argoMarkers.markers.find((m) => m.userData.float_id === floatId || m.userData.id === floatId);
+      const lat = proxy?.userData.lat ?? 10;
+      const lon = proxy?.userData.lon ?? 75;
       return generateSyntheticProfile(floatId, lat, lon);
     },
-  });
-
-  // --- Raycasting for Argo float clicks & hover ---
-  const raycaster = new THREE.Raycaster();
-  raycaster.params.Points = { threshold: 0.5 };
-  const pointer = new THREE.Vector2();
-  const tooltip = document.getElementById('argo-tooltip');
-  const coordsEl = document.getElementById('status-coords');
-  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-  const intersectPoint = new THREE.Vector3();
-
-  function getPointer(e) {
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  }
-
-  canvas.addEventListener('click', (e) => {
-    getPointer(e);
-    raycaster.setFromCamera(pointer, oceanScene.camera);
-    const hits = raycaster.intersectObjects(argoMarkers.getMarkers());
-    if (hits.length > 0) {
-      const floatId = hits[0].object.userData.float_id || hits[0].object.userData.id;
-      document.dispatchEvent(new CustomEvent('argo-click', { detail: { float_id: floatId } }));
-    }
-  });
-
-  // Throttle mousemove raycasting — only run every RAYCAST_THROTTLE_MS, not every pixel
-  let lastRaycastTime = 0;
-  canvas.addEventListener('mousemove', (e) => {
-    const now = performance.now();
-    if (now - lastRaycastTime < RAYCAST_THROTTLE_MS) return;
-    lastRaycastTime = now;
-
-    getPointer(e);
-    raycaster.setFromCamera(pointer, oceanScene.camera);
-    const hits = raycaster.intersectObjects(argoMarkers.getMarkers());
-    if (hits.length > 0) {
-      const data = hits[0].object.userData;
-      canvas.classList.add('hovering-marker');
-      if (tooltip) {
-        tooltip.classList.remove('hidden');
-        tooltip.style.left = `${e.clientX}px`;
-        tooltip.style.top = `${e.clientY}px`;
-        tooltip.innerHTML = `<div><strong>${data.platform_type === 'glider' ? '🌊 Glider' : '🛰️ Argo Float'} ${data.float_id || data.id}</strong></div><div style="font-size:10px;opacity:0.75;margin-top:2px;">${Number(data.lat).toFixed(2)}°N, ${Number(data.lon).toFixed(2)}°E · ${data.date || ''}</div>`;
-      }
-      if (coordsEl) coordsEl.textContent = `Target: ${Number(data.lat).toFixed(2)}°N · ${Number(data.lon).toFixed(2)}°E`;
-    } else {
-      canvas.classList.remove('hovering-marker');
-      if (tooltip) tooltip.classList.add('hidden');
-      if (coordsEl && raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
-        const lon = intersectPoint.x / 1.6 + 77.5;
-        const lat = intersectPoint.y / 1.6 + 12.5;
-        if (lat >= -2 && lat <= 28 && lon >= 58 && lon <= 96) {
-          coordsEl.textContent = `Lat: ${lat.toFixed(2)}°N · Lon: ${lon.toFixed(2)}°E`;
-        }
-      }
-    }
   });
 
   // --- Metadata ---
@@ -127,12 +119,14 @@ async function bootstrap() {
   if (!metadata) {
     state.usingSyntheticData = true;
     metadata = {
-      variables: ['temperature', 'salinity', 'chlorophyll'],
+      variables: ['temperature', 'salinity', 'chlorophyll', 'currents'],
       depth_levels: [0, 10, 20, 50, 100, 200, 500, 1000, 1500, 2000],
-      timesteps: [0],
+      timesteps: [0, 1, 2],
+      timestamps: ['2024-09-05', '2024-09-06', '2024-09-07'],
       extent: { lat_min: 0, lat_max: 25, lon_min: 60, lon_max: 95 },
     };
   }
+  depthSlicer.setAvailableDepths(metadata.depth_levels);
   controlPanel.applyMetadata(metadata);
   if (controlPanel.els.variable?.value) {
     state.variable = controlPanel.els.variable.value;
@@ -159,10 +153,27 @@ async function bootstrap() {
 
   function drawColorbarWithTile(tile) {
     if (!tile) return;
-    const min = tile.global_min !== undefined ? tile.global_min : (tile.min !== undefined ? tile.min : (tile.slice_min !== undefined ? tile.slice_min : 0));
-    const max = tile.global_max !== undefined ? tile.global_max : (tile.max !== undefined ? tile.max : (tile.slice_max !== undefined ? tile.slice_max : 100));
+    const varName = String(tile.variable || state.variable).toLowerCase();
+    let min, max;
+    if (varName === 'salinity') {
+      const sliceMin = tile.slice_min !== undefined ? tile.slice_min : (tile.min !== undefined ? tile.min : 33.0);
+      const sliceMax = tile.slice_max !== undefined ? tile.slice_max : (tile.max !== undefined ? tile.max : 36.5);
+      min = Math.max(32.5, Math.min(sliceMin, 34.0));
+      max = Math.min(36.8, Math.max(sliceMax, 35.8));
+    } else if (varName === 'chlorophyll') {
+      min = tile.slice_min !== undefined ? tile.slice_min : (tile.min !== undefined ? tile.min : 0.02);
+      max = tile.slice_max !== undefined ? Math.min(tile.slice_max, 4.0) : (tile.max !== undefined ? Math.min(tile.max, 4.0) : 2.5);
+    } else if (varName === 'currents') {
+      min = 0.0;
+      max = tile.slice_max !== undefined ? Math.max(tile.slice_max, 0.6) : (tile.max !== undefined ? Math.max(tile.max, 0.6) : 1.2);
+    } else {
+      min = tile.global_min !== undefined ? tile.global_min : (tile.min !== undefined ? tile.min : (tile.slice_min !== undefined ? tile.slice_min : 2.0));
+      max = tile.global_max !== undefined ? tile.global_max : (tile.max !== undefined ? tile.max : (tile.slice_max !== undefined ? tile.slice_max : 31.5));
+    }
     colorbar.draw(min, max, tile.units);
     legend.update({ variable: state.variable, units: tile.units || '°C', min, max, colormap: state.colormap });
+    const badge = document.getElementById('legend-active-var-badge');
+    if (badge) badge.textContent = `${state.variable.toUpperCase()} (${tile.units || '°C'})`;
   }
 
   async function refreshVolume() {
@@ -229,14 +240,15 @@ async function bootstrap() {
       if (idx >= 0) {
         state.timestep = idx;
         timeAnimator.jumpTo(idx);
-      } else {
-        await Promise.all([refreshVolume(), refreshArgoMarkers()]);
       }
+      await Promise.all([refreshVolume(), refreshArgoMarkers()]);
     },
     onError: (msg) => {
       console.error('[Pipeline] Error:', msg);
     }
   });
+  window.pipelineManager = pipelineManager;
+  window.timeAnimator = timeAnimator;
   await pipelineManager.init();
   // After init, sync slider to all available dates from backend
   if (pipelineManager.availableDates.length > 0) {
@@ -273,15 +285,17 @@ async function bootstrap() {
   }
 
   // --- Controls Event Listeners ---
+  // Track whether the user has manually selected a colormap
+  let userManualColormap = false;
+
   document.addEventListener('variable-change', async (e) => {
     state.variable = e.detail.variable;
-    // Auto-select specialized colormap for field if standard palette matches default
-    if (state.variable === 'salinity' && (state.colormap === 'thermal' || state.colormap === 'viridis')) {
-      state.colormap = 'haline';
-      if (controlPanel.els.colormap) controlPanel.els.colormap.value = 'haline';
-    } else if (state.variable === 'temperature' && (state.colormap === 'haline' || state.colormap === 'viridis')) {
-      state.colormap = 'thermal';
-      if (controlPanel.els.colormap) controlPanel.els.colormap.value = 'thermal';
+    // Auto-suggest a specialized colormap ONLY if user hasn't manually picked one
+    if (!userManualColormap) {
+      const autoMap = { temperature: 'thermal', salinity: 'haline', chlorophyll: 'viridis', currents: 'jet' };
+      const suggested = autoMap[state.variable] || 'viridis';
+      state.colormap = suggested;
+      if (controlPanel.els.colormap) controlPanel.els.colormap.value = suggested;
     }
     volumeRenderer.setColormap(state.colormap);
     colorbar.setColormap(state.colormap);
@@ -312,24 +326,40 @@ async function bootstrap() {
   });
 
   document.addEventListener('colormap-change', (e) => {
+    userManualColormap = true;
     state.colormap = e.detail.colormap;
     volumeRenderer.setColormap(state.colormap);
     colorbar.setColormap(state.colormap);
     legend.setColormap(state.colormap);
-    const tile = volumeRenderer.lastTile;
-    if (tile) drawColorbarWithTile(tile);
+    // Fast color-only update — reuses existing geometry, just recomputes vertex colors
+    if (volumeRenderer.lastTile) {
+      volumeRenderer.updateColors();
+      drawColorbarWithTile(volumeRenderer.lastTile);
+    }
   });
 
   document.addEventListener('opacity-change', (e) => volumeRenderer.setOpacity(e.detail.opacity));
   document.addEventListener('exag-change', (e) => {
-    volumeRenderer.setExaggeration(e.detail.exaggeration);
-    waterColumnCage.setExaggeration(e.detail.exaggeration);
+    const ex = e.detail.exaggeration;
+    volumeRenderer.setExaggeration(ex);
+    waterColumnCage.setExaggeration(ex);
+    currentVectors.setExaggeration(ex);
+    thermoclineIsosurface.setExaggeration(ex);
+    gliderTracks.setExaggeration(ex);
+    argoMarkers.setExaggeration(ex);
   });
 
   document.addEventListener('layer-toggle', (e) => {
     const { layer, visible } = e.detail;
     if (layer === 'coastline') coastline.setVisible(visible);
     if (layer === 'argo') argoMarkers.setVisible(visible);
+    if (layer === 'currents') currentVectors.setVisible(visible);
+    if (layer === 'isosurface') thermoclineIsosurface.setVisible(visible);
+    if (layer === 'gliders') gliderTracks.setVisible(visible);
+  });
+
+  document.addEventListener('start-outreach-tour', () => {
+    outreachMode.start();
   });
 
   // Play/pause is now delegated fully to TimeAnimator
@@ -342,13 +372,83 @@ async function bootstrap() {
   });
 
   document.addEventListener('outreach-toggle', (e) => {
-    document.getElementById('sidebar')?.classList.toggle('outreach-simplified', e.detail.simplified);
+    const simplified = e.detail.simplified;
+    document.getElementById('sidebar')?.classList.toggle('outreach-simplified', simplified);
+    if (simplified) {
+      outreachMode.start();
+    } else {
+      outreachMode.stop();
+    }
   });
 
-  // FPS ticker
+  // 3D Scene Layer Theme Synchronization (Coastlines, Cage & Grid)
+  const apply3DTheme = (themeId, mode) => {
+    const isLight = mode === 'light';
+    let coastColor = 0xffffff;
+    let cagePrimary = 0x00d4aa;
+    let cageGuide = 0x4a5584;
+    let cageGrid = 0x1e295d;
+
+    switch (themeId) {
+      case 'standard-marine-light':
+        coastColor = isLight ? 0x0a2540 : 0x00a3a3;
+        cagePrimary = isLight ? 0x008080 : 0x00a3a3;
+        cageGuide = isLight ? 0x0a2540 : 0x3a506b;
+        cageGrid = isLight ? 0x1e3a5f : 0x008080;
+        break;
+      case 'coastal-chart':
+        coastColor = isLight ? 0x1e3a8a : 0x06b6d4;
+        cagePrimary = isLight ? 0x0284c7 : 0x06b6d4;
+        cageGuide = isLight ? 0x1e3a8a : 0x334155;
+        cageGrid = isLight ? 0x0f2942 : 0x06b6d4;
+        break;
+      case 'journal-paper':
+        coastColor = isLight ? 0x334155 : 0x818cf8;
+        cagePrimary = isLight ? 0x4338ca : 0x818cf8;
+        cageGuide = isLight ? 0x334155 : 0x64748b;
+        cageGrid = isLight ? 0x475569 : 0x4338ca;
+        break;
+      case 'bright-horizon':
+        coastColor = isLight ? 0x0284c7 : 0x38bdf8;
+        cagePrimary = isLight ? 0x0ea5e9 : 0x38bdf8;
+        cageGuide = isLight ? 0x0284c7 : 0x7dd3fc;
+        cageGrid = isLight ? 0x00897b : 0x0ea5e9;
+        break;
+      case 'enterprise-hydro':
+        coastColor = isLight ? 0x0f172a : 0x38bdf8;
+        cagePrimary = isLight ? 0x0284c7 : 0x38bdf8;
+        cageGuide = isLight ? 0x1e293b : 0x64748b;
+        cageGrid = isLight ? 0x334155 : 0x0284c7;
+        break;
+      default: // default-dark
+        coastColor = isLight ? 0x0a0a2e : 0xffffff;
+        cagePrimary = isLight ? 0x008f75 : 0x00d4aa;
+        cageGuide = isLight ? 0x0a0a2e : 0x4a5584;
+        cageGrid = isLight ? 0x1e295d : 0x1e295d;
+        break;
+    }
+
+    coastline.updateThemeColor(coastColor, isLight ? 0.95 : 0.85);
+    waterColumnCage.updateThemeColor(cagePrimary, cageGuide, cageGrid, isLight);
+  };
+
+  document.addEventListener('theme-changed', (e) => {
+    apply3DTheme(e.detail.theme, e.detail.mode);
+  });
+
+  // Apply initial theme to 3D elements
+  const initThemeInfo = themeManager.getThemeInfo();
+  apply3DTheme(initThemeInfo.theme, initThemeInfo.mode);
+
+  // FPS ticker & stretch component animation update loop
   let fpsFrames = 0;
   let fpsLast = performance.now();
-  oceanScene.onUpdate(() => {
+  oceanScene.onUpdate((time) => {
+    currentVectors.update(time);
+    thermoclineIsosurface.update(time);
+    gliderTracks.update(time);
+    argoMarkers.update(time);
+
     fpsFrames++;
     const now = performance.now();
     if (now - fpsLast >= 500) {

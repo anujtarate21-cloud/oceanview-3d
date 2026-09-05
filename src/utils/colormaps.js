@@ -52,17 +52,22 @@ export const COLORMAPS = { viridis, thermal, haline, jet };
 export const VIRIDIS = viridis;
 
 /**
- * Map a data value to a THREE.Color instance using the given colormap.
+ * Map a data value to a THREE.Color using the given colormap.
+ * If `target` is provided, writes into it (zero-alloc hot path);
+ * otherwise creates and returns a new Color (backwards compatible).
  */
-export function valueToColor(value, min, max, colormap = viridis) {
+export function valueToColor(value, min, max, colormap = viridis, target = null) {
   const cmap = typeof colormap === 'string' ? (COLORMAPS[colormap] || viridis) : colormap;
+  const out = target || new THREE.Color();
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return new THREE.Color(0.29, 0.29, 0.37); // land grey
+    out.setRGB(0.29, 0.29, 0.37); // land grey
+    return out;
   }
   const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
   const index = Math.floor(t * 255);
   const [r, g, b] = (Array.isArray(cmap) ? cmap : viridis)[index] || [74, 74, 94];
-  return new THREE.Color(r / 255, g / 255, b / 255);
+  out.setRGB(r / 255, g / 255, b / 255);
+  return out;
 }
 
 /**

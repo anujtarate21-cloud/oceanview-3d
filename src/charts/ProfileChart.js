@@ -44,6 +44,11 @@ export class ProfileChart {
     this.downloadBtn?.addEventListener('click', () => this.exportChart());
 
     document.addEventListener('argo-click', (e) => this.open(e.detail.float_id));
+    document.addEventListener('theme-changed', () => {
+      if (this.currentProfile && !this.modal.classList.contains('hidden')) {
+        this._render(this.currentProfile);
+      }
+    });
   }
 
   async _defaultFetch(floatId) {
@@ -60,7 +65,12 @@ export class ProfileChart {
 
   async open(floatId) {
     this.modal.classList.remove('hidden');
-    this.idEl.textContent = `Float ${floatId}`;
+    // Format the float ID: only show valid numeric IDs as "#NNNN", never word artifacts like "flood"
+    const rawId = String(floatId || '').trim();
+    const cleanNum = rawId.replace(/^(?:argo|float|glider|sounding)[_\-\s#]*/i, '');
+    const isNum = /^\d+$/.test(cleanNum);
+    const displayId = isNum ? ` #${cleanNum}` : '';
+    this.idEl.textContent = `Argo Float${displayId}`;
     this.metaEl.textContent = 'Loading hydrographic sounding profile…';
     if (this.chartEl) {
       Plotly.purge(this.chartEl);
@@ -175,25 +185,32 @@ export class ProfileChart {
       });
     }
 
+    const isLight = document.documentElement.dataset.mode === 'light';
+    const computed = window.getComputedStyle(document.documentElement);
+    const paperBg = computed.getPropertyValue('--bg-panel-solid').trim() || (isLight ? '#ffffff' : '#0c233f');
+    const textColor = computed.getPropertyValue('--text').trim() || (isLight ? '#0f172a' : '#e0e0e0');
+    const gridColor = isLight ? 'rgba(15, 23, 42, 0.16)' : 'rgba(255, 255, 255, 0.12)';
+
     const layout = {
-      paper_bgcolor: DARK,
-      plot_bgcolor: DARK,
-      font: { color: TEXT, family: 'Inter, sans-serif', size: 11 },
+      paper_bgcolor: paperBg,
+      plot_bgcolor: paperBg,
+      font: { color: textColor, family: 'Inter, sans-serif', size: 11 },
       margin: { l: 55, r: 45, t: 30, b: 35 },
       showlegend: true,
-      legend: { orientation: 'h', y: -0.15, font: { size: 10.5 } },
+      legend: { orientation: 'h', y: -0.15, font: { size: 10.5, color: textColor } },
       yaxis: {
         title: 'Depth (meters)',
+        titlefont: { color: textColor },
         autorange: 'reversed',
-        gridcolor: GRID,
-        zerolinecolor: GRID,
-        tickfont: { family: 'JetBrains Mono, monospace', size: 10 },
+        gridcolor: gridColor,
+        zerolinecolor: gridColor,
+        tickfont: { family: 'JetBrains Mono, monospace', size: 10, color: textColor },
       },
       xaxis: {
         title: 'Temperature (°C)',
         titlefont: { color: TEMP_COLOR, size: 11 },
         tickfont: { color: TEMP_COLOR, family: 'JetBrains Mono, monospace', size: 10 },
-        gridcolor: GRID,
+        gridcolor: gridColor,
         side: 'top',
         anchor: 'y',
       },
