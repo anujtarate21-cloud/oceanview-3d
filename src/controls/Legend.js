@@ -1,18 +1,11 @@
 /**
- * Legend.js — Dynamic colourbar legend with variable name + units
- *
- * Renders a horizontal gradient canvas strip showing:
- *   [min label] ████████████████████ [max label]
- *              Variable Name (Units)
+ * Legend.js — Hydrographic Map Symbol Legend & Layer Info HUD
  *
  * Usage:
  *   import { Legend } from './controls/Legend.js';
- *   const legend = new Legend('legend-container');
+ *   const legend = new Legend('#top-left-legend');
  *   legend.update({ variable: 'temperature', units: '°C', min: 4.2, max: 31.5, colormap: 'thermal' });
  */
-
-import { COLORMAPS } from '../utils/colormaps.js';
-import { COLORBAR_CANVAS_WIDTH, COLORBAR_CANVAS_HEIGHT } from '../utils/constants.js';
 
 export class Legend {
   /**
@@ -23,24 +16,12 @@ export class Legend {
       ? document.querySelector(container)
       : container;
 
-    if (!this._root) return;
-
-    // Build inner DOM
-    this._root.innerHTML = `
-      <div class="legend-inner">
-        <div class="legend-bar-row">
-          <span class="legend-min" id="legend-min-val">—</span>
-          <canvas class="legend-canvas" width="${COLORBAR_CANVAS_WIDTH}" height="${COLORBAR_CANVAS_HEIGHT}"></canvas>
-          <span class="legend-max" id="legend-max-val">—</span>
-        </div>
-        <div class="legend-label" id="legend-label">—</div>
-      </div>`;
-
-    this._canvas  = this._root.querySelector('.legend-canvas');
+    this._canvas  = this._root?.querySelector('.legend-canvas');
     this._ctx     = this._canvas?.getContext('2d');
-    this._minEl   = this._root.querySelector('#legend-min-val');
-    this._maxEl   = this._root.querySelector('#legend-max-val');
-    this._labelEl = this._root.querySelector('#legend-label');
+    this._minEl   = this._root?.querySelector('#legend-min-val');
+    this._maxEl   = this._root?.querySelector('#legend-max-val');
+    this._labelEl = this._root?.querySelector('#legend-label');
+    this._badgeEl = this._root?.querySelector('#legend-active-var-badge') || document.getElementById('legend-active-var-badge');
 
     this._state = { variable: 'temperature', units: '°C', min: 0, max: 100, colormap: 'viridis' };
   }
@@ -81,36 +62,17 @@ export class Legend {
   // ── Private ────────────────────────────────────────────────────────────────
 
   _redraw() {
-    const { variable, units, min, max, colormap } = this._state;
+    const { variable, units, min, max } = this._state;
+    const name = variable.charAt(0).toUpperCase() + variable.slice(1);
 
-    // Text labels
+    if (this._badgeEl) {
+      this._badgeEl.textContent = `${name} (${units})`;
+    }
+
+    // Text labels if present
     if (this._minEl)   this._minEl.textContent   = this._fmt(min) + ' ' + units;
     if (this._maxEl)   this._maxEl.textContent   = this._fmt(max) + ' ' + units;
-    if (this._labelEl) {
-      const name = variable.charAt(0).toUpperCase() + variable.slice(1);
-      this._labelEl.textContent = `${name} (${units})`;
-    }
-
-    // Gradient canvas
-    if (!this._ctx || !this._canvas) return;
-    const w = this._canvas.width;
-    const h = this._canvas.height;
-    const palette = COLORMAPS[colormap] || COLORMAPS['viridis'];
-
-    const imgData = this._ctx.createImageData(w, h);
-    for (let x = 0; x < w; x++) {
-      const t     = x / (w - 1);
-      const idx   = Math.round(t * (palette.length - 1));
-      const [r, g, b] = palette[idx];
-      for (let y = 0; y < h; y++) {
-        const pos = (y * w + x) * 4;
-        imgData.data[pos]     = r;
-        imgData.data[pos + 1] = g;
-        imgData.data[pos + 2] = b;
-        imgData.data[pos + 3] = 255;
-      }
-    }
-    this._ctx.putImageData(imgData, 0, 0);
+    if (this._labelEl) this._labelEl.textContent = `${name} (${units})`;
   }
 
   _fmt(v) {
@@ -118,3 +80,4 @@ export class Legend {
     return Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1);
   }
 }
+

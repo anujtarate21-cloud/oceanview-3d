@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AIChatAssistant.js — Conversational Ocean Intelligence (FloatChat 2.0)
  *
  * Provides a floating glassmorphic chatbox in the lower-left corner:
@@ -51,7 +51,6 @@ export class AIChatAssistant {
     this.lastReportParams = null;
     this.activeContext = '';
     this.history = [];
-    this.isListening = false;
     this._initVoiceRecognition();
     this._initEvents();
   }
@@ -298,6 +297,10 @@ export class AIChatAssistant {
     s = s.replace(/\bacademic\s*(theme)?\b/gi, 'journal paper theme');
     s = s.replace(/\b(student|students|educator|young\s+people)\s*(theme)?\b/gi, 'student theme');
     s = s.replace(/\bbright\s+horizon\s*(theme)?\b/gi, 'student theme');
+    s = s.replace(/\bcolour\b/gi, 'color');
+    s = s.replace(/\bcolours\b/gi, 'colors');
+    s = s.replace(/\bcolourmap\b/gi, 'colormap');
+    s = s.replace(/\bcolourmaps\b/gi, 'colormaps');
     s = s.replace(/\benterprise\s*(hydro)?\s*(theme)?\b/gi, 'enterprise theme');
     s = s.replace(/\bprofessional\s*(theme)?\b/gi, 'enterprise theme');
     s = s.replace(/\bdefault\s*(dark)?\s*(theme)?\b/gi, 'default theme');
@@ -306,90 +309,302 @@ export class AIChatAssistant {
     return s;
   }
 
+  _highlightFactorMenu(menuId) {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar?.classList.contains('collapsed')) {
+      sidebar.classList.remove('collapsed');
+    }
+    const resolvedId = (menuId === 'factor-parameters' || menuId === 'factor-ocean')
+      ? (document.getElementById('factor-ocean') ? 'factor-ocean' : 'factor-parameters')
+      : menuId;
+    const el = document.getElementById(resolvedId) || document.getElementById(menuId);
+    if (el) {
+      el.open = true;
+      el.classList.remove('factor-highlight');
+      void el.offsetWidth;
+      el.classList.add('factor-highlight');
+      setTimeout(() => {
+        el.classList.remove('factor-highlight');
+      }, 3500);
+    }
+  }
+
+  _closeFactorMenu(menuId) {
+    const ids = (menuId === 'factor-parameters' || menuId === 'factor-ocean')
+      ? ['factor-ocean', 'factor-parameters']
+      : [menuId];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.open = false;
+    });
+  }
+
+  _checkImmediateVoiceControls(prompt) {
+    if (!prompt) return false;
+    const p = String(prompt).toLowerCase().trim();
+
+    // 1. Close / Hide / Minimize Chatbot Panel
+    const closeTriggers = [
+      'close chat bot', 'close chatbot', 'close chat', 'close assistant', 'close the chat',
+      'close the chatbot', 'close the chatbot panel', 'close the panel', 'close panel',
+      'minimize chat', 'minimize chatbot', 'minimize assistant', 'minimize panel',
+      'hide chat', 'hide chatbot', 'hide assistant', 'hide panel',
+      'exit chat', 'exit chatbot', 'bye incois', 'goodbye incois',
+      'dismiss assistant', 'close this window', 'close window', 'dismiss panel'
+    ];
+
+    if (closeTriggers.some(t => p.includes(t)) || p === 'close' || p === 'exit' || p === 'bye') {
+      this.toggleChat(false);
+      return true;
+    }
+
+    // 2. Stop voice listening / mute / sleep
+    const muteTriggers = [
+      'stop listening', 'stop voice', 'mute voice', 'mute mic', 'mute microphone',
+      'turn off microphone', 'turn off mic', 'turn off voice', 'disable wake word',
+      'stop wake word', 'sleep incois', 'incois sleep', 'go to sleep', 'quiet incois',
+      'stop hearing', 'stop mic', 'turn off listening', 'pause listening', 'stop listening to me'
+    ];
+
+    if (muteTriggers.some(t => p.includes(t))) {
+      try { this.recognition?.stop(); } catch (_) {}
+      this._stopListeningState();
+      this.appendMessage('bot', '🔇 **Voice listening stopped**. Click the microphone button to speak again.');
+      return true;
+    }
+
+    // 3. Start / resume voice listening
+    const startTriggers = [
+      'start listening', 'enable voice', 'resume listening', 'turn on microphone', 'turn on voice'
+    ];
+    if (startTriggers.some(t => p.includes(t))) {
+      this.appendMessage('bot', '🎙️ Click the **microphone button** to speak a command.');
+      return true;
+    }
+
+    // 4. Menu Accordion Control: Open / Close Specific Menus
+    // A. Physical Parameters & Depth Menu
+    const openParamRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(ocean\s+)?(parameters?|params?|depth|variable|hydro|water\s+column|physical\s+parameters?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
+    if (openParamRegex.test(p) || p.includes('open parameter') || p.includes('show parameter') || p.includes('expand parameter') || p.includes('open depth menu') || p.includes('open ocean parameter')) {
+      this._highlightFactorMenu('factor-ocean');
+      this.appendMessage('bot', '📂 **Opened Physical Parameters & Depth menu**.', ['Menu → Parameters']);
+      return true;
+    }
+
+    const closeParamRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(ocean\s+)?(parameters?|params?|depth|variable|hydro|water\s+column|physical\s+parameters?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
+    if (closeParamRegex.test(p) || p.includes('close parameter') || p.includes('collapse parameter') || p.includes('close ocean parameter') || p.includes('collapse ocean parameter') || p.includes('hide parameter') || p.includes('close depth menu') || p.includes('collapse depth menu')) {
+      this._closeFactorMenu('factor-ocean');
+      this.appendMessage('bot', '📁 **Closed Physical Parameters & Depth menu**.');
+      return true;
+    }
+
+    // B. Color Palette & Optics Menu
+    const openOpticsRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(colors?|colours?|colormaps?|colourmaps?|palettes?|optics?|visual|optical|rendering)\s*(palette|menu|dropdown|section|panel|accordion)?\b/i;
+    if (openOpticsRegex.test(p) || p.includes('open optics') || p.includes('open color') || p.includes('open colour') || p.includes('open palette') || p.includes('show colormap') || p.includes('show palette') || p.includes('expand optics') || p.includes('expand color') || p.includes('expand colour')) {
+      this._highlightFactorMenu('factor-optics');
+      this.appendMessage('bot', '🎨 **Opened Color Palette & Optics menu**.', ['Menu → Optics']);
+      return true;
+    }
+
+    const closeOpticsRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(colors?|colours?|colormaps?|colourmaps?|palettes?|optics?|visual|optical|rendering)\s*(palette|menu|dropdown|section|panel|accordion)?\b/i;
+    if (closeOpticsRegex.test(p) || p.includes('close optics') || p.includes('collapse optics') || p.includes('close color') || p.includes('collapse color') || p.includes('close colour') || p.includes('collapse colour') || p.includes('close palette') || p.includes('collapse palette') || p.includes('hide optics') || p.includes('hide palette')) {
+      this._closeFactorMenu('factor-optics');
+      this.appendMessage('bot', '📁 **Closed Color Palette & Optics menu**.');
+      return true;
+    }
+
+    // C. Observational Overlays Menu
+    const openOverlayRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(observational\s+)?(overlays?|layers?|argo\s+floats?|glider\s+tracks?|map\s+overlays?|map\s+layers?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
+    if (openOverlayRegex.test(p) || p.includes('open overlay') || p.includes('open layer') || p.includes('expand overlay') || p.includes('show overlay')) {
+      this._highlightFactorMenu('factor-overlays');
+      this.appendMessage('bot', '🛰️ **Opened Observational Overlays menu**.', ['Menu → Overlays']);
+      return true;
+    }
+
+    const closeOverlayRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(observational\s+)?(overlays?|layers?|argo\s+floats?|glider\s+tracks?|map\s+overlays?|map\s+layers?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
+    if (closeOverlayRegex.test(p) || p.includes('close overlay') || p.includes('collapse overlay') || p.includes('close layer') || p.includes('collapse layer') || p.includes('hide overlay')) {
+      this._closeFactorMenu('factor-overlays');
+      this.appendMessage('bot', '📁 **Closed Observational Overlays menu**.');
+      return true;
+    }
+
+    // D. Date & Timeline Pipeline Menu
+    const openPipelineRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(dates?|timelines?|pipelines?|date\s+and\s+timeline|time\s+series|time\s+steps?|calendars?|time\s+evolution)\s*(menu|dropdown|section|panel|accordion)?\b/i;
+    if (openPipelineRegex.test(p) || p.includes('open timeline') || p.includes('open date') || p.includes('open pipeline') || p.includes('expand timeline') || p.includes('show timeline')) {
+      this._highlightFactorMenu('factor-pipeline');
+      this.appendMessage('bot', '📅 **Opened Date & Timeline Pipeline menu**.', ['Menu → Pipeline']);
+      return true;
+    }
+
+    const closePipelineRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(dates?|timelines?|pipelines?|date\s+and\s+timeline|time\s+series|time\s+steps?|calendars?|time\s+evolution)\s*(menu|dropdown|section|panel|accordion)?\b/i;
+    if (closePipelineRegex.test(p) || p.includes('close timeline') || p.includes('collapse timeline') || p.includes('close date') || p.includes('collapse date') || p.includes('close pipeline') || p.includes('collapse pipeline') || p.includes('hide timeline')) {
+      this._closeFactorMenu('factor-pipeline');
+      this.appendMessage('bot', '📁 **Closed Date & Timeline Pipeline menu**.');
+      return true;
+    }
+
+    // E. Open / Expand All Menus
+    const openAllRegex = /\b(open|expand|show|display|unfold)\s+(all|every)\s+(menus?|dropdowns?|sections?|panels?|accordions?|factor\s+menus?|factors?)\b/i;
+    if (openAllRegex.test(p) || p === 'open all' || p === 'expand all' || p === 'open all menus' || p === 'expand all menus') {
+      ['factor-ocean', 'factor-optics', 'factor-overlays', 'factor-pipeline'].forEach((id) => {
+        this._highlightFactorMenu(id);
+      });
+      this.appendMessage('bot', '📂 **Expanded all sidebar control menus**.', ['Menus → All Expanded']);
+      return true;
+    }
+
+    // F. Close / Collapse All Menus
+    const closeAllRegex = /\b(close|collapse|hide|fold|shut)\s+(all|every)\s+(menus?|dropdowns?|sections?|panels?|accordions?|factor\s+menus?|factors?)\b/i;
+    if (closeAllRegex.test(p) || p === 'close all' || p === 'collapse all' || p === 'close all menus' || p === 'collapse all menus' || p === 'hide all menus') {
+      ['factor-ocean', 'factor-parameters', 'factor-optics', 'factor-overlays', 'factor-pipeline'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.open = false;
+      });
+      this.appendMessage('bot', '📁 **Collapsed all sidebar control menus**.');
+      return true;
+    }
+
+    // G. Sidebar open / close / toggle
+    if (p.includes('open sidebar') || p.includes('show sidebar') || p.includes('expand sidebar')) {
+      document.getElementById('sidebar')?.classList.remove('collapsed');
+      this.appendMessage('bot', '📊 **Sidebar opened**.');
+      return true;
+    }
+    if (p.includes('close sidebar') || p.includes('hide sidebar') || p.includes('collapse sidebar')) {
+      document.getElementById('sidebar')?.classList.add('collapsed');
+      this.appendMessage('bot', '📊 **Sidebar closed**.');
+      return true;
+    }
+    if (p.includes('toggle sidebar')) {
+      document.getElementById('sidebar-toggle-btn')?.click();
+      return true;
+    }
+
+    return false;
+  }
+
+  _isDirectOceanCommand(text) {
+    if (!text) return false;
+    const t = text.toLowerCase();
+    const oceanKeywords = [
+      'show ', 'switch to ', 'change to ', 'go to ', 'set ', 'dive to ', 'dive ',
+      'open ', 'close ', 'play ', 'pause ', 'report ', 'analyze ', 'summarize ',
+      'what is ', 'how is ', 'give me ', 'temperature', 'salinity', 'chlorophyll',
+      'currents', 'current vectors', 'argo', 'glider', 'isosurface', 'thermocline',
+      'dark mode', 'light mode', 'theme', 'exaggeration', 'opacity', 'timestep',
+      'parameter', 'parameters', 'optics', 'palette', 'overlays', 'layers', 'timeline'
+    ];
+    return oceanKeywords.some(kw => t.includes(kw));
+  }
+
   _initVoiceRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       if (this.els.micBtn) {
         this.els.micBtn.title = 'Voice commands not supported in this browser (Use Chrome or Edge)';
+        this.els.micBtn.disabled = true;
       }
       return;
     }
 
     try {
       this.recognition = new SpeechRecognition();
+      // Push-to-talk mode: NOT continuous — one utterance per click
       this.recognition.continuous = false;
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
+      this.isListening = false;
 
       this.recognition.onstart = () => {
         this.isListening = true;
         this.els.micBtn?.classList.add('listening');
-        if (this.els.micBtn) {
-          this.els.micBtn.title = 'Listening... Speak your command (Click to stop)';
-        }
-        if (this.els.input) {
-          this.els.input.placeholder = '🎙️ Listening... Speak now';
-        }
+        if (this.els.micBtn) this.els.micBtn.title = 'Listening… Click again to stop';
+        if (this.els.input) this.els.input.placeholder = '🎙️ Listening… speak your command';
       };
 
       this.recognition.onresult = (event) => {
-        let transcript = '';
+        let interimTranscript = '';
+        let finalTranscript = '';
+
         for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+          const res = event.results[i];
+          if (res.isFinal) {
+            finalTranscript += res[0].transcript + ' ';
+          } else {
+            interimTranscript += res[0].transcript + ' ';
+          }
         }
 
-        // Real-time phonetics, date words & speech correction (e.g. "ninth may twenty twenty four" -> "9th may 2024")
-        const normalized = this._normalizeVoiceInput(transcript);
+        const fullUtterance = (finalTranscript + ' ' + interimTranscript).trim();
+        if (!fullUtterance) return;
 
-        if (this.els.input) {
-          this.els.input.value = normalized;
-        }
+        // Show interim result in input box while user speaks
+        const normalized = this._normalizeVoiceInput(fullUtterance);
+        if (this.els.input) this.els.input.value = normalized;
 
-        const isFinal = event.results[event.results.length - 1].isFinal;
-        if (isFinal && normalized.trim()) {
-          const finalQuery = normalized.trim();
-          setTimeout(() => {
-            if (this.els.input) this.els.input.value = '';
-            this.submitQuery(finalQuery);
-          }, 350);
+        // Auto-submit on a final result
+        if (finalTranscript.trim()) {
+          clearTimeout(this._speechDebounceTimer);
+          this._speechDebounceTimer = setTimeout(() => {
+            const commandToRun = (this.els.input?.value || normalized).trim();
+            if (commandToRun) {
+              if (this.els.input) this.els.input.value = '';
+              // Check immediate voice controls first
+              if (!this._checkImmediateVoiceControls(commandToRun)) {
+                this.submitQuery(commandToRun);
+              }
+            }
+          }, 500);
         }
       };
 
       this.recognition.onerror = (event) => {
-        this._stopListeningState();
         if (event.error === 'not-allowed') {
-          this.appendMessage('bot', '⚠️ Microphone access was denied. Please allow microphone permissions in your browser to speak commands.');
+          this.appendMessage('bot', '🎙️ Microphone access was denied. Please allow microphone permission in your browser settings.');
         } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
-          this.appendMessage('bot', `⚠️ Voice input error: ${event.error}`);
+          console.warn('[Voice] Recognition error:', event.error);
         }
+        this._stopListeningState();
       };
 
       this.recognition.onend = () => {
+        // Push-to-talk: never auto-restart
         this._stopListeningState();
       };
+
     } catch (e) {
       console.warn('SpeechRecognition initialization failed:', e);
     }
   }
 
-  toggleVoiceRecognition() {
+  async toggleVoiceRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.appendMessage('bot', '🎙️ Voice commands are supported on Google Chrome, Microsoft Edge, and Chromium browsers via the Web Speech API.');
+      this.appendMessage('bot', '🎙️ Voice commands require Google Chrome, Microsoft Edge, or a Chromium-based browser.');
       return;
     }
 
     if (this.isListening) {
-      this.recognition?.stop();
+      // Click again to cancel mid-listen
+      try { this.recognition?.stop(); } catch (_) {}
       this._stopListeningState();
     } else {
+      // Request mic permission if needed, then start one utterance
+      try {
+        if (navigator.mediaDevices?.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((track) => track.stop());
+        }
+      } catch (_) {
+        this.appendMessage('bot', '🎙️ Microphone access denied. Please allow microphone permission in your browser settings.');
+        return;
+      }
       try {
         this.recognition?.start();
       } catch (err) {
-        this.recognition?.stop();
-        setTimeout(() => {
-          try { this.recognition?.start(); } catch (_) {}
-        }, 150);
+        // Already started — stop and restart
+        try { this.recognition?.stop(); } catch (_) {}
+        setTimeout(() => { try { this.recognition?.start(); } catch (_) {} }, 200);
       }
     }
   }
@@ -397,12 +612,18 @@ export class AIChatAssistant {
   _stopListeningState() {
     this.isListening = false;
     this.els.micBtn?.classList.remove('listening');
-    if (this.els.micBtn) {
-      this.els.micBtn.title = 'Voice Command (Click to speak)';
-    }
-    if (this.els.input) {
-      this.els.input.placeholder = "Ask: 'Show salinity at 150m' or 'Backtrack heat'...";
-    }
+    if (this.els.micBtn) this.els.micBtn.title = 'Click to speak a voice command';
+    if (this.els.input) this.els.input.placeholder = "Ask: 'Show salinity at 150m' or 'Backtrack heat'...";
+  }
+
+  _showWakeToast(message) {
+    if (!this._wakeToast) return;
+    if (message) this._wakeToast.textContent = message;
+    this._wakeToast.classList.add('show');
+    clearTimeout(this._wakeToastTimer);
+    this._wakeToastTimer = setTimeout(() => {
+      this._wakeToast?.classList.remove('show');
+    }, 3000);
   }
 
   _initEvents() {
@@ -411,6 +632,7 @@ export class AIChatAssistant {
     this.els.minimizeBtn?.addEventListener('click', () => this.toggleChat(false));
     this.els.closeHudBtn?.addEventListener('click', () => this.els.summaryOverlay?.classList.add('hidden'));
     this.els.micBtn?.addEventListener('click', () => this.toggleVoiceRecognition());
+
 
     // Audience Role Persona pills in chat window
     document.querySelectorAll('.ai-role-pill').forEach((pill) => {
@@ -491,8 +713,15 @@ export class AIChatAssistant {
     const prompt = this._normalizeVoiceInput(rawPrompt);
     this.lastReportQuery = rawPrompt || prompt;
     this.appendMessage('user', prompt);
+
+    // Direct immediate UI actions (e.g. close chat panel, stop listening, mute)
+    if (this._checkImmediateVoiceControls(prompt)) {
+      return;
+    }
+
     const currentState = this.getState();
     const loadingId = this.appendLoadingMessage('Consulting INCOIS Ocean Intelligence (Groq Llama-3)...');
+
 
     // 1. Try Groq Cloud AI Engine first (ultra-fast inference)
     if (this.groqApiKey) {
@@ -1291,6 +1520,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       if (fn === 'set_variable' || p.variable) {
         const variable = p.variable || (fn === 'set_variable' ? p.variable : null);
         if (variable) {
+          this._highlightFactorMenu('factor-parameters');
           const varSelect = document.getElementById('variable-select');
           if (varSelect) {
             varSelect.value = variable;
@@ -1303,6 +1533,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
       // 2. Depth (snapped to nearest available physical depth slice)
       if (fn === 'set_depth' || p.depth_meters !== undefined || p.depth !== undefined) {
+        this._highlightFactorMenu('factor-parameters');
         const rawDepth = Number(p.depth_meters !== undefined ? p.depth_meters : p.depth);
         const depth = this._syncDepthSlider(rawDepth);
         document.dispatchEvent(new CustomEvent('depth-change', { detail: { depth } }));
@@ -1312,6 +1543,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       if (fn === 'set_colormap' || p.colormap) {
         const cmap = p.colormap;
         if (cmap) {
+          this._highlightFactorMenu('factor-optics');
           const cmapSelect = document.getElementById('colormap-select');
           if (cmapSelect) {
             cmapSelect.value = cmap;
@@ -1324,6 +1556,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
       // 4. Opacity
       if (fn === 'set_opacity' || p.opacity_percent !== undefined || p.opacity !== undefined) {
+        this._highlightFactorMenu('factor-optics');
         let opacityPct = p.opacity_percent !== undefined ? Number(p.opacity_percent) : (p.opacity !== undefined ? (Number(p.opacity) <= 1 ? Number(p.opacity) * 100 : Number(p.opacity)) : 85);
         opacityPct = Math.max(0, Math.min(100, Math.round(opacityPct)));
         const opacitySlider = document.getElementById('opacity-slider');
@@ -1335,6 +1568,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
       // 5. Vertical Exaggeration
       if (fn === 'set_exaggeration' || p.vertical_exaggeration !== undefined || p.factor !== undefined) {
+        this._highlightFactorMenu('factor-optics');
         const rawFactor = p.vertical_exaggeration !== undefined ? p.vertical_exaggeration : p.factor;
         const factor = Math.max(1, Math.min(200, Math.round(Number(rawFactor) || 50)));
         const exagSlider = document.getElementById('exag-slider');
@@ -1346,6 +1580,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
       // 6. Timestep / Date (dispatches once without duplicate firing)
       if (fn === 'jump_to_date' || p.timestep !== undefined || p.date) {
+        this._highlightFactorMenu('factor-pipeline');
         if (p.date) {
           if (window.pipelineManager) {
             window.pipelineManager.requestDate(p.date);
@@ -1372,6 +1607,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
       // 7. Layer Toggle — syncs DOM checkbox AND fires layer-toggle event
       if (fn === 'toggle_layer' || p.layer !== undefined) {
+        this._highlightFactorMenu('factor-overlays');
         const layer = p.layer;
         const visible = p.visible !== undefined ? Boolean(p.visible) : true;
         const layerCheckboxMap = {
@@ -1394,6 +1630,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
       // 8. Animation Playback
       if (fn === 'toggle_animation' || fn === 'set_playback' || p.playing !== undefined) {
+        this._highlightFactorMenu('factor-pipeline');
         const playBtn = document.getElementById('play-btn');
         if (playBtn) {
           const isCurrentlyPlaying = playBtn.textContent.includes('Pause') || playBtn.classList.contains('playing');
@@ -1414,6 +1651,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
       // 10. Focus Argo Float
       if (fn === 'focus_argo_float' || p.float_id) {
+        this._highlightFactorMenu('factor-overlays');
         const floatId = p.float_id || action.params?.float_id || action.args?.float_id;
         if (floatId) {
           document.dispatchEvent(new CustomEvent('argo-click', { detail: { float_id: floatId } }));

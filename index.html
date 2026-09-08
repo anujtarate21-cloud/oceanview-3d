@@ -57,8 +57,13 @@
   <!-- Sidebar controls -->
   <aside id="sidebar">
     <div class="sidebar-header">
-      <span class="sidebar-title">Controls & Layers</span>
-      <span id="active-dataset-badge" class="badge">HYCOM 3D</span>
+      <div class="sidebar-title-wrap">
+        <span class="sidebar-title">Control Panel</span>
+        <span class="sidebar-sub">Hydrodynamic Parameters</span>
+      </div>
+      <div class="sidebar-header-right">
+        <span id="active-dataset-badge" class="badge">HYCOM 3D</span>
+      </div>
     </div>
 
     <!-- Outreach Mode Banner (Shown only in outreach mode) -->
@@ -75,144 +80,186 @@
       </button>
     </div>
 
-    <div class="panel-section">
-      <div class="section-label">
-        <span>Variable</span>
-        <span id="var-unit-badge" class="unit-tag">°C</span>
-      </div>
-      <div class="control-group">
-        <select id="variable-select">
-          <option value="temperature">Temperature (°C)</option>
-          <option value="salinity">Salinity (PSU)</option>
-          <option value="chlorophyll">Chlorophyll-a (mg/m³)</option>
-          <option value="currents">Current Velocity (m/s)</option>
-        </select>
-      </div>
-    </div>
+    <!-- Factor 1: Ocean Field & Depth (Open by default) -->
+    <details class="factor-group" open id="factor-ocean">
+      <summary class="factor-header">
+        <div class="factor-title-left">
+          <span class="factor-icon">🌊</span>
+          <span class="factor-title">Ocean Parameter & Depth</span>
+        </div>
+        <span class="factor-pill" id="factor-ocean-pill">0m &middot; Temp</span>
+      </summary>
+      <div class="factor-body">
+        <div class="sub-control">
+          <div class="section-label">
+            <span>Hydro Variable</span>
+            <span id="var-unit-badge" class="unit-tag">°C</span>
+          </div>
+          <div class="control-group">
+            <select id="variable-select">
+              <option value="temperature">Temperature (°C)</option>
+              <option value="salinity">Salinity (PSU)</option>
+              <option value="chlorophyll">Chlorophyll-a (mg/m³)</option>
+              <option value="currents">Current Velocity (m/s)</option>
+            </select>
+          </div>
+        </div>
 
-    <div class="panel-section">
-      <div class="section-label">
-        <span>Depth Level</span>
-        <span id="depth-readout" class="readout-highlight">0 m</span>
-      </div>
-      <div class="control-group">
-        <input type="range" id="depth-slider" min="0" max="15" step="1" value="0">
-        <div id="depth-slider-ticks"></div>
-      </div>
-      <!-- Quick Depth Jump Presets -->
-      <div class="depth-presets">
-        <button class="preset-chip active" data-depth="0">0m (Surface)</button>
-        <button class="preset-chip" data-depth="150">150m (Thermocline)</button>
-        <button class="preset-chip" data-depth="500">500m (Mid)</button>
-        <button class="preset-chip" data-depth="1000">1000m (Deep)</button>
-        <button class="preset-chip" data-depth="3000">3000m (Abyssal)</button>
-      </div>
-    </div>
-
-    <div class="panel-section colormap-section">
-      <div class="section-label">
-        <span>Colormap Palette</span>
-      </div>
-      <div class="control-group">
-        <select id="colormap-select">
-          <option value="viridis">Viridis (Standard)</option>
-          <option value="thermal">Thermal (High Contrast Temp)</option>
-          <option value="haline">Haline (Salinity Gradient)</option>
-          <option value="jet">Jet (Classic Rainbow)</option>
-        </select>
-      </div>
-      <div id="colorbar-container">
-        <canvas id="colorbar" width="24" height="160"></canvas>
-        <div id="colorbar-labels">
-          <span id="colorbar-max">32.4°C</span>
-          <span id="colorbar-mid">16.7°C</span>
-          <span id="colorbar-min">1.1°C</span>
+        <div class="sub-control">
+          <div class="section-label">
+            <span>Water Column Depth</span>
+            <span id="depth-readout" class="readout-highlight">0 m</span>
+          </div>
+          <div class="control-group">
+            <input type="range" id="depth-slider" min="0" max="15" step="1" value="0">
+            <div id="depth-slider-ticks"></div>
+          </div>
+          <div class="depth-presets">
+            <button class="preset-chip active" data-depth="0">0m (Surface)</button>
+            <button class="preset-chip" data-depth="150">150m (Thermocline)</button>
+            <button class="preset-chip" data-depth="500">500m (Mid)</button>
+            <button class="preset-chip" data-depth="1000">1000m (Deep)</button>
+            <button class="preset-chip" data-depth="3000">3000m (Abyssal)</button>
+          </div>
         </div>
       </div>
-    </div>
+    </details>
 
-    <div class="panel-section">
-      <div class="section-label">
-        <span>Opacity</span>
-        <span id="opacity-readout">100%</span>
-      </div>
-      <div class="control-group">
-        <input type="range" id="opacity-slider" min="0" max="100" value="100">
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <div class="section-label">
-        <span>Vertical Exaggeration</span>
-        <span id="exag-readout">50×</span>
-      </div>
-      <div class="control-group">
-        <input type="range" id="exag-slider" min="1" max="200" value="50">
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <div class="section-label">Map & 3D Feature Overlays</div>
-      <div class="control-group toggle-row">
-        <label class="toggle"><input type="checkbox" id="toggle-coastline" checked><span>Coastline Vectors (Natural Earth)</span></label>
-        <label class="toggle"><input type="checkbox" id="toggle-argo" checked><span>Argo Float Soundings (65 Units)</span></label>
-        <label class="toggle"><input type="checkbox" id="toggle-currents"><span>🌊 3D Current Vectors (Somali/Wyrtki)</span></label>
-        <label class="toggle"><input type="checkbox" id="toggle-isosurface"><span>🌡️ Thermocline 20°C Isosurface</span></label>
-        <label class="toggle"><input type="checkbox" id="toggle-gliders"><span>🛰️ Autonomous Glider Tracks</span></label>
-      </div>
-    </div>
-
-    <!-- Date Navigator -->
-    <div class="panel-section" id="pipeline-panel">
-      <div class="pipeline-header">
-        <span class="pipeline-icon">🌊</span>
-        <span class="pipeline-title">Date Navigator</span>
-        <span class="pipeline-badge" id="pipeline-badge">LIVE</span>
-      </div>
-      <div class="pipeline-date-row">
-        <input type="date" id="pipeline-date-input" value="2023-03-21"
-               min="2018-01-01" max="2026-12-31"
-               title="Select a date to visualize ocean state" />
-        <button id="pipeline-fetch-btn" title="Fetch data for this date">
-          Load
-        </button>
-      </div>
-      <div id="pipeline-status-bar" class="pipeline-status hidden">
-        <div class="pipeline-progress-track">
-          <div class="pipeline-progress-fill" id="pipeline-progress-fill"></div>
+    <!-- Factor 2: Color Palette & Optics -->
+    <details class="factor-group" id="factor-optics">
+      <summary class="factor-header">
+        <div class="factor-title-left">
+          <span class="factor-icon">🎨</span>
+          <span class="factor-title">Color Palette & Optics</span>
         </div>
-        <div class="pipeline-status-text" id="pipeline-status-text">Initializing...</div>
-      </div>
-      <div class="pipeline-available-label">CACHED DATES:</div>
-      <div id="pipeline-date-chips" class="pipeline-date-chips"></div>
-    </div>
+        <span class="factor-pill" id="factor-optics-pill">Viridis</span>
+      </summary>
+      <div class="factor-body">
+        <div class="sub-control colormap-section">
+          <div class="section-label">
+            <span>Colormap Palette</span>
+          </div>
+          <div class="control-group">
+            <select id="colormap-select">
+              <option value="viridis">Viridis (Standard)</option>
+              <option value="thermal">Thermal (High Contrast Temp)</option>
+              <option value="haline">Haline (Salinity Gradient)</option>
+              <option value="jet">Jet (Classic Rainbow)</option>
+            </select>
+          </div>
+          <div id="colorbar-container">
+            <canvas id="colorbar" width="24" height="120"></canvas>
+            <div id="colorbar-labels">
+              <span id="colorbar-max">32.4°C</span>
+              <span id="colorbar-mid">16.7°C</span>
+              <span id="colorbar-min">1.1°C</span>
+            </div>
+          </div>
+        </div>
 
-    <div class="panel-section" id="time-section">
-      <div class="section-label">
-        <span>Timestep Evolution</span>
-        <span id="time-readout">2023-03-21 (T2)</span>
+        <div class="sub-control">
+          <div class="section-label">
+            <span>Volume Opacity</span>
+            <span id="opacity-readout">100%</span>
+          </div>
+          <div class="control-group">
+            <input type="range" id="opacity-slider" min="0" max="100" value="100">
+          </div>
+        </div>
+
+        <div class="sub-control">
+          <div class="section-label">
+            <span>Vertical Exaggeration</span>
+            <span id="exag-readout">50×</span>
+          </div>
+          <div class="control-group">
+            <input type="range" id="exag-slider" min="1" max="200" value="50">
+          </div>
+        </div>
       </div>
-      <div class="control-group time-controls">
-        <button id="play-btn" class="icon-btn small" title="Play / pause (Space)">▶</button>
-        <input type="range" id="time-slider" min="0" max="15" step="1" value="2">
+    </details>
+
+    <!-- Factor 3: 3D Observational Overlays -->
+    <details class="factor-group" id="factor-overlays">
+      <summary class="factor-header">
+        <div class="factor-title-left">
+          <span class="factor-icon">🛰️</span>
+          <span class="factor-title">Observational Overlays</span>
+        </div>
+        <span class="factor-pill">5 Layers</span>
+      </summary>
+      <div class="factor-body">
+        <div class="control-group toggle-row">
+          <label class="toggle"><input type="checkbox" id="toggle-coastline" checked><span>Coastline Vectors (Natural Earth)</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-argo" checked><span>Argo Float Soundings (In-Situ)</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-currents"><span>🌊 3D Current Vectors</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-isosurface"><span>🌡️ Thermocline 20°C Isosurface</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-gliders"><span>🛰️ Autonomous Glider Tracks</span></label>
+        </div>
       </div>
-    </div>
+    </details>
+
+    <!-- Factor 4: Date & Timeline Pipeline -->
+    <details class="factor-group" id="factor-pipeline">
+      <summary class="factor-header">
+        <div class="factor-title-left">
+          <span class="factor-icon">📅</span>
+          <span class="factor-title">Date & Timeline Pipeline</span>
+        </div>
+        <span class="factor-pill" id="factor-date-pill">2023-03-21</span>
+      </summary>
+      <div class="factor-body">
+        <div class="pipeline-section" id="pipeline-panel">
+          <div class="pipeline-header">
+            <span class="pipeline-icon">🌊</span>
+            <span class="pipeline-title">Date Navigator</span>
+            <span class="pipeline-badge" id="pipeline-badge">LIVE</span>
+          </div>
+          <div class="pipeline-date-row">
+            <input type="date" id="pipeline-date-input" value="2023-03-21"
+                   min="2018-01-01" max="2026-12-31"
+                   title="Select a date to visualize ocean state" />
+            <button id="pipeline-fetch-btn" title="Fetch data for this date">
+              Load
+            </button>
+          </div>
+          <div id="pipeline-status-bar" class="pipeline-status hidden">
+            <div class="pipeline-progress-track">
+              <div class="pipeline-progress-fill" id="pipeline-progress-fill"></div>
+            </div>
+            <div class="pipeline-status-text" id="pipeline-status-text">Initializing...</div>
+          </div>
+          <div class="pipeline-available-label">CACHED DATES:</div>
+          <div id="pipeline-date-chips" class="pipeline-date-chips"></div>
+        </div>
+
+        <div class="sub-control" id="time-section">
+          <div class="section-label">
+            <span>Timestep Evolution</span>
+            <span id="time-readout">2023-03-21 (T2)</span>
+          </div>
+          <div class="control-group time-controls">
+            <button id="play-btn" class="icon-btn small" title="Play / pause (Space)">▶</button>
+            <input type="range" id="time-slider" min="0" max="15" step="1" value="2">
+          </div>
+        </div>
+      </div>
+    </details>
   </aside>
 
-  <!-- Top-Left Floating Legend & Colormap HUD -->
+  <!-- Top-Left Floating Legend HUD (Clean Symbol Key) -->
   <aside id="top-left-legend" class="glass-panel">
     <div class="legend-header">
       <span class="legend-title">Hydrographic Legend</span>
       <span id="legend-active-var-badge" class="badge">HYCOM 3D</span>
     </div>
-    <!-- Dynamic colourbar rendered by Legend.js -->
-    <div id="legend-container" class="legend-colorbar-wrap"></div>
     <div id="legend-list">
       <div class="legend-item"><span class="legend-dot argo"></span> Argo Float (In-situ Sounding)</div>
       <div class="legend-item"><span class="legend-dot glider"></span> Autonomous Glider</div>
       <div class="legend-item"><span class="legend-swatch land"></span> Land / Topographic Mask</div>
     </div>
   </aside>
+
 
   <!-- Lower-Left Floating AI Ocean Assistant (FloatChat 2.0) -->
   <div id="ai-assistant-container">
@@ -383,5 +430,9 @@
   </div>
 
   <script type="module" src="/src/main.js"></script>
+
+  <!-- Wake Word Toast Notification (shown when Hey INCOIS is detected) -->
+  <div id="wake-word-toast">🎙️ Hey INCOIS — Listening for your command…</div>
 </body>
 </html>
+

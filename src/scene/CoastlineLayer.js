@@ -31,10 +31,10 @@ export class CoastlineLayer {
     }
 
     this.material = new THREE.LineBasicMaterial({
-      color: 0xffffff,
+      color: 0x7c6a4e, // Warm earth-brown outline — complements Soft Sand / Parchment land fill
       linewidth: 2,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.95
     });
 
     const parseLineString = (coords) => {

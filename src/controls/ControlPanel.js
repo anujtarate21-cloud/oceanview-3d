@@ -44,6 +44,9 @@ export class ControlPanel {
       shortcutsModal: document.getElementById('shortcuts-modal'),
       closeShortcutsBtn: document.getElementById('close-shortcuts-btn'),
       tourBtns: document.querySelectorAll('.tour-btn'),
+      factorOceanPill: document.getElementById('factor-ocean-pill'),
+      factorOpticsPill: document.getElementById('factor-optics-pill'),
+      factorDatePill: document.getElementById('factor-date-pill'),
     };
 
     this._bindEvents();
@@ -109,6 +112,18 @@ export class ControlPanel {
     if (this.els.varUnitBadge) {
       this.els.varUnitBadge.textContent = this._unitFor(variable);
     }
+    this._syncOceanPill();
+  }
+
+  _syncOceanPill() {
+    if (this.els.factorOceanPill && this.els.depthSlider) {
+      const idx = Number(this.els.depthSlider.value);
+      const depth = Math.round(this.depthLevels[idx] ?? 0);
+      const raw = this.els.variable?.value || 'temperature';
+      const labels = { temperature: 'Temp', salinity: 'Sal', chlorophyll: 'Chl-a', currents: 'Currents' };
+      const shortVar = labels[raw] || raw;
+      this.els.factorOceanPill.textContent = `${depth}m · ${shortVar}`;
+    }
   }
 
   _setVariable(variable) {
@@ -131,6 +146,7 @@ export class ControlPanel {
     if (this.els.depthReadout) {
       this.els.depthReadout.textContent = `${depth} m`;
     }
+    this._syncOceanPill();
     const activeSlice = document.getElementById('status-active-slice');
     if (activeSlice) {
       const raw = this.els.variable?.value || 'temperature';
@@ -154,6 +170,9 @@ export class ControlPanel {
     }
     if (this.els.timeReadout) {
       this.els.timeReadout.textContent = `${dateStr} (t${t})`;
+    }
+    if (this.els.factorDatePill) {
+      this.els.factorDatePill.textContent = `${dateStr}`;
     }
     return t;
   }
@@ -202,6 +221,10 @@ export class ControlPanel {
 
     // Colormap
     this.els.colormap.addEventListener('change', (e) => {
+      if (this.els.factorOpticsPill) {
+        const name = e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1);
+        this.els.factorOpticsPill.textContent = name;
+      }
       this._emit('colormap-change', { colormap: e.target.value });
     });
 

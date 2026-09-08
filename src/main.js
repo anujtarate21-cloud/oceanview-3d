@@ -62,7 +62,7 @@ async function bootstrap() {
 
   const controlPanel = new ControlPanel();
   const colorbar = new ColormapEditor();
-  const legend = new Legend('#top-left-legend #legend-container');
+  const legend = new Legend('#top-left-legend');
   const themeManager = new ThemeManager({ oceanScene });
   const aiAssistant = new AIChatAssistant({
     getState: () => ({ variable: state.variable, depth: state.depth, timestep: state.timestep, date: state.date }),

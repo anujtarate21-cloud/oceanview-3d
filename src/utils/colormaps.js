@@ -60,28 +60,29 @@ export function valueToColor(value, min, max, colormap = viridis, target = null)
   const cmap = typeof colormap === 'string' ? (COLORMAPS[colormap] || viridis) : colormap;
   const out = target || new THREE.Color();
   if (value === null || value === undefined || Number.isNaN(value)) {
-    out.setRGB(0.29, 0.29, 0.37); // land grey
+    // Soft Sand / Parchment (#D4C5A9) — warm terrain for light-mode presentation
+    out.setRGB(0.831, 0.773, 0.663);
     return out;
   }
   const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
   const index = Math.floor(t * 255);
-  const [r, g, b] = (Array.isArray(cmap) ? cmap : viridis)[index] || [74, 74, 94];
+  const [r, g, b] = (Array.isArray(cmap) ? cmap : viridis)[index] || [212, 197, 169];
   out.setRGB(r / 255, g / 255, b / 255);
   return out;
 }
 
 /**
  * Map a data value to an [r, g, b] triplet (0-255) using the given colormap.
- * Returns the land/grey color for null / NaN.
+ * Returns the Clean Off-White / Ice color for null / NaN land values.
  */
 export function valueToRGB(value, min, max, colormapArray) {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return [74, 74, 94]; // land/masked grey, matches --land
+    return [212, 197, 169]; // Soft Sand / Parchment (#D4C5A9) — light-mode terrain
   }
   const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
   const index = Math.floor(t * 255);
   const cmap = Array.isArray(colormapArray) ? colormapArray : (COLORMAPS[colormapArray] || viridis);
-  return cmap[index] || [74, 74, 94];
+  return cmap[index] || [243, 244, 246];
 }
 
 export function rgbToCss([r, g, b]) {
