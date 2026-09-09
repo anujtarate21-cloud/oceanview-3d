@@ -26,29 +26,37 @@
   <!-- Top title bar -->
   <header id="topbar">
     <div id="topbar-left">
-      <span class="brand-mark">◉</span>
+      <div class="emblem-container">
+        <span class="brand-mark">◆</span>
+      </div>
       <div class="brand-text">
+        <div class="govt-sub">Govt. of India &middot; Ministry of Earth Sciences (MoES)</div>
         <span class="brand-title">OceanView 3D</span>
-        <span class="brand-sub">INCOIS &middot; Ministry of Earth Sciences</span>
+        <span class="brand-sub">INCOIS &middot; Sub-Surface Hydrodynamic & Argo In-Situ Platform</span>
       </div>
     </div>
     <div id="topbar-right">
-      <!-- 5 Curated Themes & Dark/Light Mode Selector -->
+      <div class="telemetry-pill-group">
+        <span class="system-status-badge live-badge" title="Operational Data Stream"><span class="pulse-dot"></span> HYCOM 1/12° OPERATIONAL</span>
+        <span class="system-status-badge info-badge" title="Argo Profiling Floats Network">4,000+ IN-SITU ARGO</span>
+      </div>
+
+      <!-- Institutional Curated Themes & Dark/Light Mode Selector -->
       <div class="theme-control-wrap">
         <select id="theme-select" class="theme-select" title="Switch Theme (Shift + T)">
-          <option value="default-dark">🌌 Dark Abyss</option>
-          <option value="standard-marine-light">🏛️ Standard Marine Light</option>
-          <option value="coastal-chart">🧭 Coastal Chart</option>
-          <option value="journal-paper">📜 Journal Paper</option>
-          <option value="bright-horizon">🎓 Bright Horizon</option>
-          <option value="enterprise-hydro">💼 Enterprise Clean Hydro</option>
+          <option value="standard-marine-light">INCOIS Official (Govt Light)</option>
+          <option value="default-dark">INCOIS Mission Slate (Dark)</option>
+          <option value="enterprise-hydro">Hydrodynamic Operations (Azure)</option>
+          <option value="coastal-chart">Hydrographic Nautical Chart</option>
+          <option value="journal-paper">Academic Research Standard</option>
+          <option value="bright-horizon">Public Outreach & Education</option>
         </select>
         <button id="mode-toggle-btn" class="icon-btn mode-btn" title="Toggle Light / Dark Mode (Shift + M)">
-          <span id="mode-icon">🌙</span>
+          <span id="mode-icon">Theme</span>
         </button>
       </div>
 
-      <button id="shortcuts-btn" class="icon-btn" title="Keyboard Shortcuts (?)">⌨</button>
+      <button id="shortcuts-btn" class="icon-btn" title="Keyboard Shortcuts (?)">?</button>
       <button id="outreach-toggle-btn" class="icon-btn" title="Public Outreach / Exhibition Mode (O)">◐</button>
       <button id="toggle-sidebar-btn" class="icon-btn" title="Toggle Controls (H)">☰</button>
     </div>
@@ -62,29 +70,36 @@
         <span class="sidebar-sub">Hydrodynamic Parameters</span>
       </div>
       <div class="sidebar-header-right">
+        <button id="sidebar-accordion-toggle-btn" class="icon-btn mini" title="Collapse / Expand All Sections (Shift + A)">⊟</button>
         <span id="active-dataset-badge" class="badge">HYCOM 3D</span>
       </div>
     </div>
 
-    <!-- Outreach Mode Banner (Shown only in outreach mode) -->
-    <div id="outreach-banner" class="hidden">
-      <div class="outreach-title">🌟 Public Exhibition Mode</div>
-      <div class="outreach-desc">Interactive 3D walkthrough of the Indian Ocean's underwater water column and robotic Argo research floats.</div>
-      <div class="outreach-tours">
-        <button class="tour-btn" data-tour="surface">🌊 Warm Surface Layer</button>
-        <button class="tour-btn" data-tour="thermocline">🌡️ Thermocline (150m)</button>
-        <button class="tour-btn" data-tour="abyssal">⚓ Deep Abyssal (3000m)</button>
+    <!-- Outreach Mode Banner (Shown only in outreach mode) — collapsible accordion -->
+    <details class="factor-group outreach-factor" id="outreach-banner" open hidden>
+      <summary class="factor-header">
+        <div class="factor-title-left">
+          <span class="factor-title">Public Exhibition Mode</span>
+        </div>
+        <span class="factor-pill outreach-pill">Interactive</span>
+      </summary>
+      <div class="factor-body outreach-body">
+        <div class="outreach-desc">Interactive 3D walkthrough of the Indian Ocean's underwater water column and robotic Argo research floats.</div>
+        <div class="outreach-tours">
+          <button class="tour-btn" data-tour="surface">Warm Surface Layer</button>
+          <button class="tour-btn" data-tour="thermocline">Thermocline (150m)</button>
+          <button class="tour-btn" data-tour="abyssal">Deep Abyssal (3000m)</button>
+        </div>
+        <button id="start-outreach-btn" class="preset-chip outreach-launch-btn" title="Start Guided Indian Ocean Story Tour">
+          Launch 3D Guided Story Tour
+        </button>
       </div>
-      <button id="start-outreach-btn" class="preset-chip outreach-launch-btn" title="Start Guided Indian Ocean Story Tour" style="margin-top:8px;width:100%;">
-        🎓 Launch 3D Guided Story Tour
-      </button>
-    </div>
+    </details>
 
     <!-- Factor 1: Ocean Field & Depth (Open by default) -->
     <details class="factor-group" open id="factor-ocean">
       <summary class="factor-header">
         <div class="factor-title-left">
-          <span class="factor-icon">🌊</span>
           <span class="factor-title">Ocean Parameter & Depth</span>
         </div>
         <span class="factor-pill" id="factor-ocean-pill">0m &middot; Temp</span>
@@ -115,11 +130,11 @@
             <div id="depth-slider-ticks"></div>
           </div>
           <div class="depth-presets">
-            <button class="preset-chip active" data-depth="0">0m (Surface)</button>
-            <button class="preset-chip" data-depth="150">150m (Thermocline)</button>
-            <button class="preset-chip" data-depth="500">500m (Mid)</button>
-            <button class="preset-chip" data-depth="1000">1000m (Deep)</button>
-            <button class="preset-chip" data-depth="3000">3000m (Abyssal)</button>
+            <button class="preset-chip active" data-depth="0">0m Surface</button>
+            <button class="preset-chip" data-depth="150">150m Thermo</button>
+            <button class="preset-chip" data-depth="500">500m Mid</button>
+            <button class="preset-chip" data-depth="1000">1000m Deep</button>
+            <button class="preset-chip" data-depth="3000">3000m Abyssal</button>
           </div>
         </div>
       </div>
@@ -129,7 +144,6 @@
     <details class="factor-group" id="factor-optics">
       <summary class="factor-header">
         <div class="factor-title-left">
-          <span class="factor-icon">🎨</span>
           <span class="factor-title">Color Palette & Optics</span>
         </div>
         <span class="factor-pill" id="factor-optics-pill">Viridis</span>
@@ -148,11 +162,11 @@
             </select>
           </div>
           <div id="colorbar-container">
-            <canvas id="colorbar" width="24" height="120"></canvas>
+            <canvas id="colorbar" width="260" height="12"></canvas>
             <div id="colorbar-labels">
-              <span id="colorbar-max">32.4°C</span>
-              <span id="colorbar-mid">16.7°C</span>
               <span id="colorbar-min">1.1°C</span>
+              <span id="colorbar-mid">16.7°C</span>
+              <span id="colorbar-max">32.4°C</span>
             </div>
           </div>
         </div>
@@ -183,18 +197,56 @@
     <details class="factor-group" id="factor-overlays">
       <summary class="factor-header">
         <div class="factor-title-left">
-          <span class="factor-icon">🛰️</span>
           <span class="factor-title">Observational Overlays</span>
         </div>
-        <span class="factor-pill">5 Layers</span>
+        <span class="factor-pill" id="factor-overlays-pill">2/5 Active</span>
       </summary>
       <div class="factor-body">
-        <div class="control-group toggle-row">
-          <label class="toggle"><input type="checkbox" id="toggle-coastline" checked><span>Coastline Vectors (Natural Earth)</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-argo" checked><span>Argo Float Soundings (In-Situ)</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-currents"><span>🌊 3D Current Vectors</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-isosurface"><span>🌡️ Thermocline 20°C Isosurface</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-gliders"><span>🛰️ Autonomous Glider Tracks</span></label>
+        <div class="overlay-grid" id="observational-overlays-list">
+          <!-- Coastlines (Surface 0m) -->
+          <label class="overlay-card overlay-row active" for="toggle-coastline" title="Coastline boundary vectors at sea surface">
+            <div class="overlay-card-top">
+              <input type="checkbox" id="toggle-coastline" class="overlay-checkbox" checked>
+              <span class="overlay-card-title">Coastlines</span>
+            </div>
+            <div class="overlay-card-depth" id="badge-depth-coastline">Surface · 0m</div>
+          </label>
+
+          <!-- Argo Floats (0-2000m) -->
+          <label class="overlay-card overlay-row active" for="toggle-argo" title="In-situ robotic profiling floats operating across water column">
+            <div class="overlay-card-top">
+              <input type="checkbox" id="toggle-argo" class="overlay-checkbox" checked>
+              <span class="overlay-card-title">Argo Floats</span>
+            </div>
+            <div class="overlay-card-depth" id="badge-depth-argo">0 – 2000m</div>
+          </label>
+
+          <!-- 3D Current Vectors (0-500m) -->
+          <label class="overlay-card overlay-row" for="toggle-currents" title="Ocean current velocity vectors (Somali, WICC, EICC, Wyrtki Jet)">
+            <div class="overlay-card-top">
+              <input type="checkbox" id="toggle-currents" class="overlay-checkbox">
+              <span class="overlay-card-title">3D Currents</span>
+            </div>
+            <div class="overlay-card-depth" id="badge-depth-currents">0 – 500m</div>
+          </label>
+
+          <!-- 20°C Thermocline Isosurface (50-220m) -->
+          <label class="overlay-card overlay-row" for="toggle-isosurface" title="Core 20°C thermocline boundary layer undulating with monsoon upwelling">
+            <div class="overlay-card-top">
+              <input type="checkbox" id="toggle-isosurface" class="overlay-checkbox">
+              <span class="overlay-card-title">20°C Isosurface</span>
+            </div>
+            <div class="overlay-card-depth" id="badge-depth-isosurface">~150m (50–220m)</div>
+          </label>
+
+          <!-- Autonomous Gliders (0-1000m) -->
+          <label class="overlay-card overlay-row full-width" for="toggle-gliders" title="Autonomous underwater glider missions executing sawtooth dive profiles">
+            <div class="overlay-card-top">
+              <input type="checkbox" id="toggle-gliders" class="overlay-checkbox">
+              <span class="overlay-card-title">Glider Tracks</span>
+            </div>
+            <div class="overlay-card-depth" id="badge-depth-gliders">0 – 1000m</div>
+          </label>
         </div>
       </div>
     </details>
@@ -203,23 +255,17 @@
     <details class="factor-group" id="factor-pipeline">
       <summary class="factor-header">
         <div class="factor-title-left">
-          <span class="factor-icon">📅</span>
           <span class="factor-title">Date & Timeline Pipeline</span>
         </div>
         <span class="factor-pill" id="factor-date-pill">2023-03-21</span>
       </summary>
       <div class="factor-body">
         <div class="pipeline-section" id="pipeline-panel">
-          <div class="pipeline-header">
-            <span class="pipeline-icon">🌊</span>
-            <span class="pipeline-title">Date Navigator</span>
-            <span class="pipeline-badge" id="pipeline-badge">LIVE</span>
-          </div>
           <div class="pipeline-date-row">
             <input type="date" id="pipeline-date-input" value="2023-03-21"
                    min="2018-01-01" max="2026-12-31"
                    title="Select a date to visualize ocean state" />
-            <button id="pipeline-fetch-btn" title="Fetch data for this date">
+            <button id="pipeline-fetch-btn" class="pipeline-fetch-btn" title="Fetch data for this date">
               Load
             </button>
           </div>
@@ -229,8 +275,10 @@
             </div>
             <div class="pipeline-status-text" id="pipeline-status-text">Initializing...</div>
           </div>
-          <div class="pipeline-available-label">CACHED DATES:</div>
-          <div id="pipeline-date-chips" class="pipeline-date-chips"></div>
+          <div class="pipeline-cached-wrap">
+            <span class="pipeline-available-label">CACHED:</span>
+            <div id="pipeline-date-chips" class="pipeline-date-chips"></div>
+          </div>
         </div>
 
         <div class="sub-control" id="time-section">
@@ -239,7 +287,7 @@
             <span id="time-readout">2023-03-21 (T2)</span>
           </div>
           <div class="control-group time-controls">
-            <button id="play-btn" class="icon-btn small" title="Play / pause (Space)">▶</button>
+            <button id="play-btn" class="icon-btn mini" title="Play / pause (Space)">▶</button>
             <input type="range" id="time-slider" min="0" max="15" step="1" value="2">
           </div>
         </div>
@@ -265,7 +313,6 @@
   <div id="ai-assistant-container">
     <!-- Minimized Trigger Button -->
     <button id="ai-toggle-btn" class="ai-fab-btn" title="Toggle Ocean AI Assistant (Ctrl + Space)">
-      <span class="ai-sparkle">✨</span>
       <span class="ai-btn-label">Ocean AI Assistant</span>
     </button>
 
@@ -273,35 +320,35 @@
     <div id="ai-chat-window" class="glass-panel hidden">
       <div class="ai-chat-header">
         <div class="ai-header-info">
-          <span class="ai-avatar">🌊</span>
+          <span class="ai-avatar">AI</span>
           <div>
             <div class="ai-bot-title">OceanView Intelligence</div>
             <div class="ai-bot-status">INCOIS Model &bull; Argo Sounding &bull; Gemini</div>
           </div>
         </div>
         <div class="ai-header-actions">
-          <button id="ai-upload-btn" class="icon-btn small" title="Upload NetCDF / CSV / JSON Dataset">📎</button>
+          <button id="ai-upload-btn" class="icon-btn small" title="Upload NetCDF / CSV / JSON Dataset">Upload</button>
           <button id="ai-minimize-btn" class="icon-btn small" title="Minimize Chat (Esc)">✕</button>
         </div>
       </div>
 
       <!-- Quick Prompt Suggestion Chips -->
       <div class="ai-quick-chips">
-        <button class="ai-quick-chip" data-query="Give me an oceanographer report for 9th May 2024">🔬 Oceanographer Report</button>
-        <button class="ai-quick-chip" data-query="Government project report on cyclone heat and EEZ fishing zones">🏛️ Gov / MoES Brief</button>
-        <button class="ai-quick-chip" data-query="Explain ocean state and thermocline to a student">🎓 Student Explanation</button>
-        <button class="ai-quick-chip" data-query="Researcher statistical report comparing HYCOM model and Argo floats">📊 Researcher Metrics</button>
-        <button class="ai-quick-chip" data-query="Show 3D ocean current vectors and velocity field">🌊 3D Currents</button>
-        <button class="ai-quick-chip" data-query="Display thermocline 20°C isosurface mesh">🌡️ 20°C Isosurface</button>
-        <button class="ai-quick-chip" data-query="Show autonomous glider mission tracks in 3D">🛰️ Glider Tracks</button>
+        <button class="ai-quick-chip" data-query="Give me an oceanographer report for 9th May 2024">Oceanographer Report</button>
+        <button class="ai-quick-chip" data-query="Government project report on cyclone heat and EEZ fishing zones">Gov / MoES Brief</button>
+        <button class="ai-quick-chip" data-query="Explain ocean state and thermocline to a student">Student Explanation</button>
+        <button class="ai-quick-chip" data-query="Researcher statistical report comparing HYCOM model and Argo floats">Researcher Metrics</button>
+        <button class="ai-quick-chip" data-query="Show 3D ocean current vectors and velocity field">3D Currents</button>
+        <button class="ai-quick-chip" data-query="Display thermocline 20°C isosurface mesh">20°C Isosurface</button>
+        <button class="ai-quick-chip" data-query="Show autonomous glider mission tracks in 3D">Glider Tracks</button>
       </div>
 
       <!-- Message History Stream -->
       <div id="ai-chat-messages" class="ai-messages-scroll">
         <div class="ai-message bot">
           <div class="ai-bubble">
-            Greetings! I am your <strong>OceanView Intelligence Assistant</strong>.<br/>
-            I provide role-tailored intelligence for <strong>Oceanographers</strong>, <strong>Government / MoES Projects</strong>, <strong>Students</strong>, and <strong>Researchers</strong>. Select a role above or simply ask: <em>"Give me a government report for 21st March 2023"</em> or <em>"Explain to a student"</em>.
+            Greetings. I am your <strong>OceanView Intelligence Assistant</strong>.<br/>
+            I provide role-tailored hydrographic intelligence for <strong>Oceanographers</strong>, <strong>Government / MoES Projects</strong>, <strong>Students</strong>, and <strong>Researchers</strong>. Select a role or ask: <em>"Give me a government report for 21st March 2023"</em> or <em>"Explain to a student"</em>.
           </div>
         </div>
       </div>
@@ -315,7 +362,7 @@
           placeholder="Ask: 'Government report for 2023-03-21' or 'Show currents'..." 
           autocomplete="off" 
         />
-        <button type="button" id="ai-mic-btn" class="ai-mic-btn" title="Voice Command (Click to speak)">🎙️</button>
+        <button type="button" id="ai-mic-btn" class="ai-mic-btn" title="Voice Command (Click to speak)">Voice</button>
         <button type="submit" id="ai-send-btn" class="ai-send-btn" title="Send Query">➔</button>
       </form>
     </div>
@@ -326,19 +373,19 @@
     <div class="hud-header">
       <div class="hud-header-top-row">
         <div class="hud-header-title-col">
-          <span class="hud-title">📊 Hydrographic AI Intelligence Report</span>
-          <span id="hud-role-badge" class="hud-role-badge">ROLE: 🌐 GENERAL</span>
+          <span class="hud-title">Hydrographic Intelligence Report</span>
+          <span id="hud-role-badge" class="hud-role-badge">ROLE: GENERAL</span>
         </div>
         <button id="close-hud-btn" class="icon-btn small hud-close-btn" title="Close (Esc)">✕</button>
       </div>
       <div class="hud-role-selector-bar">
         <span class="hud-role-hint">Target Audience Persona:</span>
         <div class="hud-role-selector">
-          <button type="button" class="hud-role-btn active" data-role="general" title="General Hydrographic Overview">🌐 General</button>
-          <button type="button" class="hud-role-btn" data-role="oceanographer" title="Physical Oceanography, Pycnocline & Stratification">🔬 Oceanographer</button>
-          <button type="button" class="hud-role-btn" data-role="government" title="MoES / Policy, EEZ, Fisheries & Cyclone Readiness">🏛️ Government</button>
-          <button type="button" class="hud-role-btn" data-role="student" title="Educational, Intuitive Analogies & Discovery">🎓 Student</button>
-          <button type="button" class="hud-role-btn" data-role="researcher" title="Statistical Rigor, Model RMSE & Hypotheses">📊 Researcher</button>
+          <button type="button" class="hud-role-btn active" data-role="general" title="General Hydrographic Overview">General</button>
+          <button type="button" class="hud-role-btn" data-role="oceanographer" title="Physical Oceanography, Pycnocline & Stratification">Oceanographer</button>
+          <button type="button" class="hud-role-btn" data-role="government" title="MoES / Policy, EEZ, Fisheries & Cyclone Readiness">Government / MoES</button>
+          <button type="button" class="hud-role-btn" data-role="student" title="Educational, Intuitive Analogies & Discovery">Student</button>
+          <button type="button" class="hud-role-btn" data-role="researcher" title="Statistical Rigor, Model RMSE & Hypotheses">Researcher</button>
         </div>
       </div>
     </div>
@@ -366,7 +413,7 @@
           <div id="profile-float-meta">0.63°N, 75.72°E &middot; 2024-09-05 &middot; Sounding: 0 - 1900m</div>
         </div>
         <div class="profile-header-right">
-          <button id="download-chart-btn" class="icon-btn" title="Download Chart PNG">📷</button>
+          <button id="download-chart-btn" class="icon-btn" title="Download Chart PNG">Export</button>
           <button id="close-modal" class="icon-btn" title="Close (Esc)">✕</button>
         </div>
       </div>
@@ -402,7 +449,7 @@
   <div id="shortcuts-modal" class="hidden">
     <div id="shortcuts-modal-inner">
       <div class="modal-title-bar">
-        <span>⌨ Keyboard Shortcuts</span>
+        <span>Keyboard Shortcuts</span>
         <button id="close-shortcuts-btn" class="icon-btn">✕</button>
       </div>
       <div class="shortcuts-grid">
@@ -412,6 +459,7 @@
         <div class="shortcut-row"><kbd>T</kbd><span>Switch to Temperature Field</span></div>
         <div class="shortcut-row"><kbd>S</kbd><span>Switch to Salinity Field</span></div>
         <div class="shortcut-row"><kbd>O</kbd><span>Toggle Public Exhibition Mode</span></div>
+        <div class="shortcut-row"><kbd>Shift</kbd> + <kbd>A</kbd><span>Collapse / Expand All Sidebar Sections</span></div>
         <div class="shortcut-row"><kbd>H</kbd><span>Toggle Controls Sidebar</span></div>
         <div class="shortcut-row"><kbd>Esc</kbd><span>Close Active Modal</span></div>
       </div>
@@ -426,13 +474,13 @@
     <span class="status-sep">|</span>
     <span id="status-active-slice">Slice: Temp @ 0m</span>
     <span class="status-sep">|</span>
-    <span id="status-hint">💡 Click any orange Argo float marker to inspect real-time vertical hydrographic profile</span>
+    <span id="status-hint">Click any orange Argo float marker to inspect real-time vertical hydrographic profile</span>
   </div>
 
   <script type="module" src="/src/main.js"></script>
 
   <!-- Wake Word Toast Notification (shown when Hey INCOIS is detected) -->
-  <div id="wake-word-toast">🎙️ Hey INCOIS — Listening for your command…</div>
+  <div id="wake-word-toast">Hey INCOIS — Listening for your command…</div>
 </body>
 </html>
 

@@ -85,11 +85,11 @@ export class AIChatAssistant {
     const badge = document.getElementById('hud-role-badge');
     if (badge) {
       const roleLabels = {
-        general: 'ROLE: 🌐 GENERAL',
-        oceanographer: 'ROLE: 🔬 OCEANOGRAPHER',
-        government: 'ROLE: 🏛️ GOVERNMENT / MoES',
-        student: 'ROLE: 🎓 STUDENT',
-        researcher: 'ROLE: 📊 RESEARCH SCIENTIST'
+        general: 'ROLE: GENERAL',
+        oceanographer: 'ROLE: OCEANOGRAPHER',
+        government: 'ROLE: GOVERNMENT / MoES',
+        student: 'ROLE: STUDENT',
+        researcher: 'ROLE: RESEARCH SCIENTIST'
       };
       badge.textContent = roleLabels[this.activeRole] || `ROLE: ${this.activeRole.toUpperCase()}`;
     }
@@ -106,7 +106,7 @@ export class AIChatAssistant {
         metrics: rep.metrics,
         role: this.activeRole
       });
-      this.appendMessage('bot', `🔄 Report regenerated for **${this.activeRole.toUpperCase()}** persona.`);
+      this.appendMessage('bot', `Report regenerated for **${this.activeRole.toUpperCase()}** persona.`);
     }
   }
 
@@ -369,7 +369,7 @@ export class AIChatAssistant {
     if (muteTriggers.some(t => p.includes(t))) {
       try { this.recognition?.stop(); } catch (_) {}
       this._stopListeningState();
-      this.appendMessage('bot', '🔇 **Voice listening stopped**. Click the microphone button to speak again.');
+      this.appendMessage('bot', '**Voice listening stopped**. Click the voice button to speak again.');
       return true;
     }
 
@@ -378,7 +378,7 @@ export class AIChatAssistant {
       'start listening', 'enable voice', 'resume listening', 'turn on microphone', 'turn on voice'
     ];
     if (startTriggers.some(t => p.includes(t))) {
-      this.appendMessage('bot', '🎙️ Click the **microphone button** to speak a command.');
+      this.appendMessage('bot', 'Click the **voice button** to speak a command.');
       return true;
     }
 
@@ -387,14 +387,14 @@ export class AIChatAssistant {
     const openParamRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(ocean\s+)?(parameters?|params?|depth|variable|hydro|water\s+column|physical\s+parameters?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
     if (openParamRegex.test(p) || p.includes('open parameter') || p.includes('show parameter') || p.includes('expand parameter') || p.includes('open depth menu') || p.includes('open ocean parameter')) {
       this._highlightFactorMenu('factor-ocean');
-      this.appendMessage('bot', '📂 **Opened Physical Parameters & Depth menu**.', ['Menu → Parameters']);
+      this.appendMessage('bot', '**Opened Physical Parameters & Depth menu**.', ['Menu → Parameters']);
       return true;
     }
 
     const closeParamRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(ocean\s+)?(parameters?|params?|depth|variable|hydro|water\s+column|physical\s+parameters?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
     if (closeParamRegex.test(p) || p.includes('close parameter') || p.includes('collapse parameter') || p.includes('close ocean parameter') || p.includes('collapse ocean parameter') || p.includes('hide parameter') || p.includes('close depth menu') || p.includes('collapse depth menu')) {
       this._closeFactorMenu('factor-ocean');
-      this.appendMessage('bot', '📁 **Closed Physical Parameters & Depth menu**.');
+      this.appendMessage('bot', '**Closed Physical Parameters & Depth menu**.');
       return true;
     }
 
@@ -402,14 +402,14 @@ export class AIChatAssistant {
     const openOpticsRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(colors?|colours?|colormaps?|colourmaps?|palettes?|optics?|visual|optical|rendering)\s*(palette|menu|dropdown|section|panel|accordion)?\b/i;
     if (openOpticsRegex.test(p) || p.includes('open optics') || p.includes('open color') || p.includes('open colour') || p.includes('open palette') || p.includes('show colormap') || p.includes('show palette') || p.includes('expand optics') || p.includes('expand color') || p.includes('expand colour')) {
       this._highlightFactorMenu('factor-optics');
-      this.appendMessage('bot', '🎨 **Opened Color Palette & Optics menu**.', ['Menu → Optics']);
+      this.appendMessage('bot', '**Opened Color Palette & Optics menu**.', ['Menu → Optics']);
       return true;
     }
 
     const closeOpticsRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(colors?|colours?|colormaps?|colourmaps?|palettes?|optics?|visual|optical|rendering)\s*(palette|menu|dropdown|section|panel|accordion)?\b/i;
     if (closeOpticsRegex.test(p) || p.includes('close optics') || p.includes('collapse optics') || p.includes('close color') || p.includes('collapse color') || p.includes('close colour') || p.includes('collapse colour') || p.includes('close palette') || p.includes('collapse palette') || p.includes('hide optics') || p.includes('hide palette')) {
       this._closeFactorMenu('factor-optics');
-      this.appendMessage('bot', '📁 **Closed Color Palette & Optics menu**.');
+      this.appendMessage('bot', '**Closed Color Palette & Optics menu**.');
       return true;
     }
 
@@ -417,14 +417,14 @@ export class AIChatAssistant {
     const openOverlayRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(observational\s+)?(overlays?|layers?|argo\s+floats?|glider\s+tracks?|map\s+overlays?|map\s+layers?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
     if (openOverlayRegex.test(p) || p.includes('open overlay') || p.includes('open layer') || p.includes('expand overlay') || p.includes('show overlay')) {
       this._highlightFactorMenu('factor-overlays');
-      this.appendMessage('bot', '🛰️ **Opened Observational Overlays menu**.', ['Menu → Overlays']);
+      this.appendMessage('bot', '**Opened Observational Overlays menu**.', ['Menu → Overlays']);
       return true;
     }
 
     const closeOverlayRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(observational\s+)?(overlays?|layers?|argo\s+floats?|glider\s+tracks?|map\s+overlays?|map\s+layers?)\s*(menu|dropdown|section|panel|accordion)?\b/i;
     if (closeOverlayRegex.test(p) || p.includes('close overlay') || p.includes('collapse overlay') || p.includes('close layer') || p.includes('collapse layer') || p.includes('hide overlay')) {
       this._closeFactorMenu('factor-overlays');
-      this.appendMessage('bot', '📁 **Closed Observational Overlays menu**.');
+      this.appendMessage('bot', '**Closed Observational Overlays menu**.');
       return true;
     }
 
@@ -432,14 +432,14 @@ export class AIChatAssistant {
     const openPipelineRegex = /\b(open|expand|show|display|unfold)\s+(the\s+)?(dates?|timelines?|pipelines?|date\s+and\s+timeline|time\s+series|time\s+steps?|calendars?|time\s+evolution)\s*(menu|dropdown|section|panel|accordion)?\b/i;
     if (openPipelineRegex.test(p) || p.includes('open timeline') || p.includes('open date') || p.includes('open pipeline') || p.includes('expand timeline') || p.includes('show timeline')) {
       this._highlightFactorMenu('factor-pipeline');
-      this.appendMessage('bot', '📅 **Opened Date & Timeline Pipeline menu**.', ['Menu → Pipeline']);
+      this.appendMessage('bot', '**Opened Date & Timeline Pipeline menu**.', ['Menu → Pipeline']);
       return true;
     }
 
     const closePipelineRegex = /\b(close|collapse|hide|fold|shut)\s+(the\s+)?(dates?|timelines?|pipelines?|date\s+and\s+timeline|time\s+series|time\s+steps?|calendars?|time\s+evolution)\s*(menu|dropdown|section|panel|accordion)?\b/i;
     if (closePipelineRegex.test(p) || p.includes('close timeline') || p.includes('collapse timeline') || p.includes('close date') || p.includes('collapse date') || p.includes('close pipeline') || p.includes('collapse pipeline') || p.includes('hide timeline')) {
       this._closeFactorMenu('factor-pipeline');
-      this.appendMessage('bot', '📁 **Closed Date & Timeline Pipeline menu**.');
+      this.appendMessage('bot', '**Closed Date & Timeline Pipeline menu**.');
       return true;
     }
 
@@ -449,7 +449,7 @@ export class AIChatAssistant {
       ['factor-ocean', 'factor-optics', 'factor-overlays', 'factor-pipeline'].forEach((id) => {
         this._highlightFactorMenu(id);
       });
-      this.appendMessage('bot', '📂 **Expanded all sidebar control menus**.', ['Menus → All Expanded']);
+      this.appendMessage('bot', '**Expanded all sidebar control menus**.', ['Menus → All Expanded']);
       return true;
     }
 
@@ -460,19 +460,19 @@ export class AIChatAssistant {
         const el = document.getElementById(id);
         if (el) el.open = false;
       });
-      this.appendMessage('bot', '📁 **Collapsed all sidebar control menus**.');
+      this.appendMessage('bot', '**Collapsed all sidebar control menus**.');
       return true;
     }
 
     // G. Sidebar open / close / toggle
     if (p.includes('open sidebar') || p.includes('show sidebar') || p.includes('expand sidebar')) {
       document.getElementById('sidebar')?.classList.remove('collapsed');
-      this.appendMessage('bot', '📊 **Sidebar opened**.');
+      this.appendMessage('bot', '**Sidebar opened**.');
       return true;
     }
     if (p.includes('close sidebar') || p.includes('hide sidebar') || p.includes('collapse sidebar')) {
       document.getElementById('sidebar')?.classList.add('collapsed');
-      this.appendMessage('bot', '📊 **Sidebar closed**.');
+      this.appendMessage('bot', '**Sidebar closed**.');
       return true;
     }
     if (p.includes('toggle sidebar')) {
@@ -560,7 +560,7 @@ export class AIChatAssistant {
 
       this.recognition.onerror = (event) => {
         if (event.error === 'not-allowed') {
-          this.appendMessage('bot', '🎙️ Microphone access was denied. Please allow microphone permission in your browser settings.');
+          this.appendMessage('bot', 'Microphone access was denied. Please allow microphone permission in your browser settings.');
         } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
           console.warn('[Voice] Recognition error:', event.error);
         }
@@ -580,7 +580,7 @@ export class AIChatAssistant {
   async toggleVoiceRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.appendMessage('bot', '🎙️ Voice commands require Google Chrome, Microsoft Edge, or a Chromium-based browser.');
+      this.appendMessage('bot', 'Voice commands require Google Chrome, Microsoft Edge, or a Chromium-based browser.');
       return;
     }
 
@@ -596,7 +596,7 @@ export class AIChatAssistant {
           stream.getTracks().forEach((track) => track.stop());
         }
       } catch (_) {
-        this.appendMessage('bot', '🎙️ Microphone access denied. Please allow microphone permission in your browser settings.');
+        this.appendMessage('bot', 'Microphone access denied. Please allow microphone permission in your browser settings.');
         return;
       }
       try {
@@ -640,7 +640,7 @@ export class AIChatAssistant {
         const role = pill.dataset.role;
         if (role) {
           this.setActiveRole(role, false);
-          this.appendMessage('bot', `🎭 **Role switched to ${role.toUpperCase()}**. Your next report or query will be tailored for this audience. Try: *"Give me a report for ${role} on current ocean state"*`);
+          this.appendMessage('bot', `**Role switched to ${role.toUpperCase()}**. Your next report or query will be tailored for this audience. Try: *"Give me a report for ${role} on current ocean state"*`);
         }
       });
     });
@@ -828,13 +828,12 @@ You have direct control over the interactive 3D WebGL Ocean Canvas. When the use
 - set_opacity: {"opacity_percent": 0..100}
 - set_exaggeration: {"vertical_exaggeration": 1..200}
 - jump_to_date: {"date": "YYYY-MM-DD", "timestep": 0..15}
+- cache_batch_dates: {"dates": ["YYYY-MM-DD", ...]} (for batch adding entire weeks or months of dates to timeline)
 - toggle_layer: {"layer": "coastline" | "argo" | "currents" | "isosurface" | "gliders", "visible": true | false}
 - toggle_animation: {"playing": true | false}
 - toggle_outreach: {"outreach": true | false}
 - set_theme: {"theme_id": "default-dark" | "standard-marine-light" | "coastal-chart" | "journal-paper" | "bright-horizon" | "enterprise-hydro"}
-  (Trigger when user says "switch to government theme", "activate student theme", "change to coastal chart", etc.)
 - toggle_mode: {"mode": "dark" | "light"}
-  (Trigger when user says "switch to dark mode", "enable light mode", "toggle day mode", etc.)
 
 STRICT JSON OUTPUT FORMAT:
 You MUST respond strictly with a valid JSON object matching this schema:
@@ -847,7 +846,7 @@ You MUST respond strictly with a valid JSON object matching this schema:
   ],
   "report": null
 }
-If the user asks for a report, bulletin, or summary, populate "report" with { "title": "...", "summary": "### Markdown...", "metrics": { "Key": "Value" }, "role": "${this.activeRole}" }. Tailor report content to the audience role.`;
+If the user asks for a report, bulletin, or summary, extract the exact requested year/month/date (do NOT replace user-requested years like 2021 with default 2024), and populate "report" with { "title": "...", "date": "YYYY-MM-DD", "summary": "### Markdown...", "metrics": { "Key": "Value" }, "role": "${this.activeRole}" }.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -977,48 +976,179 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       targetVar = 'temperature';
     }
 
-    // 3. Date extraction
-    const isWeekly = p.includes('week') || p.includes('7 day') || p.includes('trend') || p.includes('recent') || p.includes('past week');
-    const patA = p.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)\b(?:\s+(19\d{2}|20\d{2}))?/i);
+    // 3. Date & Time Range Extraction (Dynamic for any year, month, ordinal week, or specific date)
+    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const shortMonthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    let year = 2024;
+    let month = 9;
+    let day = 1;
+    let userSpecifiedYear = false;
+    let userSpecifiedMonth = false;
+    let userSpecifiedDay = false;
+
+    // Direct Year Extraction
+    const directYearMatch = p.match(/\b(19\d{2}|20\d{2})\b/);
+    if (directYearMatch) {
+      year = parseInt(directYearMatch[1], 10);
+      userSpecifiedYear = true;
+    }
+
+    // Ordinal week match (e.g., "1st week", "first week", "2nd week", "3rd week", "4th week", "5th week", "last week")
+    const weekOrdMatch = p.match(/\b(1st|first|2nd|second|3rd|third|4th|fourth|5th|fifth|last)\s+week\b/i) ||
+      p.match(/\bweek\s+(?:number\s+|no\.?\s*)?([1-5])\b/i);
+    const isWeekly = p.includes('week') || p.includes('7 day') || p.includes('trend') || p.includes('recent') || p.includes('past week') || !!weekOrdMatch;
+
+    const patWeekMonthYear = p.match(/\b(1st|first|2nd|second|3rd|third|4th|fourth|5th|fifth|last)\s+week\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)(?:\s+(19\d{2}|20\d{2}))?\b/i);
+    const patWeekNumMonthYear = p.match(/\bweek\s+([1-5])\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)(?:\s+(19\d{2}|20\d{2}))?\b/i);
+    const patA = p.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:(?:week\s+)?of\s+)?(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)\b(?:\s+(19\d{2}|20\d{2}))?/i);
     const patB = p.match(/\b(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(19\d{2}|20\d{2}))?/i);
     const patC = p.match(/\b(19\d{2}|20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
-    const patD = p.match(/\b(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)\s+(19\d{2}|20\d{2})\b/i);
-    const patE = p.match(/\b(19\d{2}|20\d{2})\b/);
+    const patD = p.match(/\b(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)(?:\s+month)?\s+(?:of\s+)?(19\d{2}|20\d{2})\b/i);
+    const patMonthWord = p.match(/\bmonth\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)\b/i);
 
-    let day = 15;
-    let month = 8;
-    let year = 2024;
-
-    if (patA) {
-      day = parseInt(patA[1], 10);
-      month = months[patA[2].toLowerCase()] || 8;
-      year = patA[3] ? parseInt(patA[3], 10) : 2024;
-    } else if (patB) {
-      month = months[patB[1].toLowerCase()] || 8;
-      day = parseInt(patB[2], 10);
-      year = patB[3] ? parseInt(patB[3], 10) : 2024;
+    if (patWeekMonthYear) {
+      month = months[patWeekMonthYear[2].toLowerCase()] || 9;
+      userSpecifiedMonth = true;
+      if (patWeekMonthYear[3]) {
+        year = parseInt(patWeekMonthYear[3], 10);
+        userSpecifiedYear = true;
+      }
+    } else if (patWeekNumMonthYear) {
+      month = months[patWeekNumMonthYear[2].toLowerCase()] || 9;
+      userSpecifiedMonth = true;
+      if (patWeekNumMonthYear[3]) {
+        year = parseInt(patWeekNumMonthYear[3], 10);
+        userSpecifiedYear = true;
+      }
     } else if (patC) {
       year = parseInt(patC[1], 10);
       month = parseInt(patC[2], 10);
       day = parseInt(patC[3], 10);
+      userSpecifiedYear = true;
+      userSpecifiedMonth = true;
+      userSpecifiedDay = true;
+    } else if (patA) {
+      day = parseInt(patA[1], 10);
+      month = months[patA[2].toLowerCase()] || 9;
+      if (patA[3]) { year = parseInt(patA[3], 10); userSpecifiedYear = true; }
+      userSpecifiedMonth = true;
+      userSpecifiedDay = true;
+    } else if (patB) {
+      month = months[patB[1].toLowerCase()] || 9;
+      day = parseInt(patB[2], 10);
+      if (patB[3]) { year = parseInt(patB[3], 10); userSpecifiedYear = true; }
+      userSpecifiedMonth = true;
+      userSpecifiedDay = true;
     } else if (patD) {
-      month = months[patD[1].toLowerCase()] || 8;
+      month = months[patD[1].toLowerCase()] || 9;
       year = parseInt(patD[2], 10);
-      day = 15;
-    } else if (patE) {
-      year = parseInt(patE[1], 10);
-      month = 8;
-      day = 15;
+      day = 1;
+      userSpecifiedMonth = true;
+      userSpecifiedYear = true;
+    } else {
+      const mm = patMonthWord || p.match(/\b(january|february|march|april|may|june|july|august|september|sept|sep|october|november|december|jan|feb|mar|apr|jun|jul|aug|oct|nov|dec)\b/i);
+      if (mm) {
+        month = months[mm[1].toLowerCase()] || 9;
+        userSpecifiedMonth = true;
+      }
+      const dm = p.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/);
+      if (dm) {
+        const val = parseInt(dm[1], 10);
+        if (val >= 1 && val <= 31 && val !== year && !p.includes(`${dm[1]} week`) && !p.includes(`${dm[1]}st week`) && !p.includes(`${dm[1]}nd week`) && !p.includes(`${dm[1]}rd week`) && !p.includes(`${dm[1]}th week`)) {
+          day = val;
+          userSpecifiedDay = true;
+        }
+      }
+    }
+
+    // If month was not in this prompt but was in previous report context, reuse it
+    if (!userSpecifiedMonth && this.lastReportParams?.date) {
+      const lastDate = this.lastReportParams.date;
+      const mMatch = lastDate.match(/-(\d{2})-/);
+      if (mMatch) {
+        month = parseInt(mMatch[1], 10);
+      }
+    }
+
+    // Default to currently active timeline date if user gave relative command like "add dates of whole week"
+    if (!userSpecifiedYear && !userSpecifiedMonth && !userSpecifiedDay) {
+      const cur = window.pipelineManager?.currentDate || currentState?.date;
+      if (cur && /^\d{4}-\d{2}-\d{2}$/.test(cur)) {
+        const parts = cur.split('-');
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10);
+        day = parseInt(parts[2], 10);
+      }
     }
 
     month = Math.max(1, Math.min(12, month));
-    day = Math.max(1, Math.min(31, day));
+    const daysInMonth = new Date(year, month, 0).getDate();
+    day = Math.max(1, Math.min(daysInMonth, day));
 
-    const mm = String(month).padStart(2, '0');
-    const dd = String(day).padStart(2, '0');
-    const reportDate = isWeekly ? '2024-08-28 to 2024-09-05' : `${year}-${mm}-${dd}`;
-    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const displayDate = isWeekly ? '28 Aug – 05 Sep 2024' : `${day} ${monthNames[month]} ${year}`;
+    let generatedDates = [];
+    let reportDate = '';
+    let displayDate = '';
+
+    if (isWeekly) {
+      let startDay = 1;
+      let endDay = 7;
+      const weekStr = weekOrdMatch ? (weekOrdMatch[1] || weekOrdMatch[0]).toLowerCase() : '';
+
+      if (weekStr.includes('1') || weekStr.includes('first')) {
+        startDay = 1;
+        endDay = Math.min(7, daysInMonth);
+      } else if (weekStr.includes('2') || weekStr.includes('second')) {
+        startDay = 8;
+        endDay = Math.min(14, daysInMonth);
+      } else if (weekStr.includes('3') || weekStr.includes('third')) {
+        startDay = 15;
+        endDay = Math.min(21, daysInMonth);
+      } else if (weekStr.includes('4') || weekStr.includes('fourth')) {
+        startDay = 22;
+        endDay = Math.min(28, daysInMonth);
+      } else if (weekStr.includes('5') || weekStr.includes('fifth') || weekStr.includes('last')) {
+        startDay = Math.max(1, daysInMonth - 6);
+        endDay = daysInMonth;
+      } else if (userSpecifiedDay) {
+        startDay = Math.max(1, day - 3);
+        endDay = Math.min(daysInMonth, startDay + 6);
+      } else if (!userSpecifiedYear && !userSpecifiedMonth) {
+        // Benchmark fallback week if no date tokens present
+        year = 2024;
+        month = 8;
+        startDay = 28;
+        endDay = 31;
+      } else {
+        startDay = 1;
+        endDay = Math.min(7, daysInMonth);
+      }
+
+      if (!userSpecifiedYear && !userSpecifiedMonth && !weekOrdMatch) {
+        generatedDates = [
+          '2024-08-28', '2024-08-29', '2024-08-30', '2024-08-31',
+          '2024-09-01', '2024-09-02', '2024-09-03', '2024-09-04', '2024-09-05'
+        ];
+        reportDate = '2024-08-28 to 2024-09-05';
+        displayDate = '28 Aug – 05 Sep 2024';
+      } else {
+        const mStr = String(month).padStart(2, '0');
+        for (let d = startDay; d <= endDay; d++) {
+          const dStr = String(d).padStart(2, '0');
+          generatedDates.push(`${year}-${mStr}-${dStr}`);
+        }
+        const sD = String(startDay).padStart(2, '0');
+        const eD = String(endDay).padStart(2, '0');
+        reportDate = `${year}-${mStr}-${sD} to ${year}-${mStr}-${eD}`;
+        displayDate = `${sD} ${shortMonthNames[month]} – ${eD} ${shortMonthNames[month]} ${year}`;
+      }
+    } else {
+      const mm = String(month).padStart(2, '0');
+      const dd = String(day).padStart(2, '0');
+      reportDate = `${year}-${mm}-${dd}`;
+      displayDate = `${day} ${monthNames[month]} ${year}`;
+      generatedDates = [reportDate];
+    }
 
     // Base climate physics calculation
     const yearDelta = (year - 2020) * 0.04;
@@ -1073,7 +1203,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       const eke = Math.round(180 + (year - 2020) * 15);
 
       const title = `Current Vectors & Hydrodynamics Report · ${displayDate}`;
-      const summary = `### 🌊 INCOIS Indian Ocean 3D Current Vectors & Velocity Field\n` +
+      const summary = `### INCOIS Indian Ocean 3D Current Vectors & Velocity Field\n` +
         `**Target Date:** **${reportDate}** &middot; **Period:** ${displayDate}\n` +
         `**Hydrodynamic Regime:** Active 3D current vector field generated from HYCOM circulation model for ${displayDate}.\n\n` +
         `**1. Current Velocity & Directional Flow:**\n` +
@@ -1094,9 +1224,11 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         targetFactor: 'currents',
         reportDate,
         displayDate,
+        generatedDates: generatedDates.length > 0 ? generatedDates : [reportDate],
         year, month, day,
         title,
         summary,
+        role: currentState?._activeRole || this.activeRole || 'general',
         metrics: {
           'Target Date': reportDate,
           'Mean Vector Speed': `${meanVel} m/s`,
@@ -1116,7 +1248,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       const waveAmp = (12 + (month % 5) * 3).toFixed(1);
 
       const title = `20°C Thermocline Isosurface Report · ${displayDate}`;
-      const summary = `### 🌡️ INCOIS 20°C Thermocline Volumetric Isosurface Analysis\n` +
+      const summary = `### INCOIS 20°C Thermocline Volumetric Isosurface Analysis\n` +
         `**Target Date:** **${reportDate}** &middot; **Period:** ${displayDate}\n` +
         `**3D Surface Extraction:** Marching Cubes algorithm isosurface at the critical 20°C isotherm boundary.\n\n` +
         `**1. Isosurface Depth & Topography:**\n` +
@@ -1136,9 +1268,11 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         targetFactor: 'isosurface',
         reportDate,
         displayDate,
+        generatedDates: generatedDates.length > 0 ? generatedDates : [reportDate],
         year, month, day,
         title,
         summary,
+        role: currentState?._activeRole || this.activeRole || 'general',
         metrics: {
           'Target Date': reportDate,
           '20°C Surface Depth': `${isoDepth} m`,
@@ -1154,7 +1288,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
     if (targetFactor === 'gliders') {
       const title = `Autonomous Underwater Glider Mission Report · ${displayDate}`;
-      const summary = `### 🚀 INCOIS Autonomous Glider Fleet & Profile Analysis\n` +
+      const summary = `### INCOIS Autonomous Glider Fleet & Profile Analysis\n` +
         `**Target Date:** **${reportDate}** &middot; **Period:** ${displayDate}\n` +
         `**Platform Deployment:** DeepGlider Unit '#SG-642' active transect across the Central Indian Basin.\n\n` +
         `**1. Glider Mission & Trajectory:**\n` +
@@ -1175,9 +1309,11 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         targetFactor: 'gliders',
         reportDate,
         displayDate,
+        generatedDates: generatedDates.length > 0 ? generatedDates : [reportDate],
         year, month, day,
         title,
         summary,
+        role: currentState?._activeRole || this.activeRole || 'general',
         metrics: {
           'Target Date': reportDate,
           'Glider Platform': '#SG-642 DeepGlider',
@@ -1196,7 +1332,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       const dcmDepth = Math.round(70 - (month * 1.5));
 
       const title = `Chlorophyll-a & Phytoplankton Ecology Report · ${displayDate}`;
-      const summary = `### 🌿 INCOIS Optical Oceanography & Chlorophyll-a Analysis\n` +
+      const summary = `### INCOIS Optical Oceanography & Chlorophyll-a Analysis\n` +
         `**Target Date:** **${reportDate}** &middot; **Period:** ${displayDate}\n` +
         `**Ecological State:** Chlorophyll-a bio-optical concentration across the euphotic layer for ${displayDate}.\n\n` +
         `**1. Chlorophyll-a Distribution & Primary Productivity:**\n` +
@@ -1216,9 +1352,11 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         targetFactor: 'chlorophyll',
         reportDate,
         displayDate,
+        generatedDates: generatedDates.length > 0 ? generatedDates : [reportDate],
         year, month, day,
         title,
         summary,
+        role: currentState?._activeRole || this.activeRole || 'general',
         metrics: {
           'Target Date': reportDate,
           'Surface Chlorophyll': `${chlSurf} mg/m³`,
@@ -1233,7 +1371,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
     if (targetFactor === 'salinity') {
       const title = `Thermohaline & Salinity Distribution Report · ${displayDate}`;
-      const summary = `### 🧂 INCOIS Indian Ocean Salinity & Haline Analysis\n` +
+      const summary = `### INCOIS Indian Ocean Salinity & Haline Analysis\n` +
         `**Target Date:** **${reportDate}** &middot; **Period:** ${displayDate}\n` +
         `**Haline State:** Water mass salinity distribution for ${displayDate}.\n\n` +
         `**1. Surface & Depth Salinity Field:**\n` +
@@ -1253,9 +1391,11 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         targetFactor: 'salinity',
         reportDate,
         displayDate,
+        generatedDates: generatedDates.length > 0 ? generatedDates : [reportDate],
         year, month, day,
         title,
         summary,
+        role: currentState?._activeRole || this.activeRole || 'general',
         metrics: {
           'Target Date': reportDate,
           'Mean Surface Salinity': `${baseSal.toFixed(1)} PSU`,
@@ -1319,7 +1459,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         ? `**Chlorophyll-a Profile:** Deep chlorophyll maximum (DCM) peaks near 60–90m; at ${z}m optical irradiance is ${(z > 200 ? '0.00' : '0.15')} mg/m³.`
         : `**Thermal Profile Focus:** In-situ temperature at ${z}m is **${layerTemp.toFixed(1)} °C** with a gradient of **${gradient}**.`;
 
-      const summary = `### 🌊 INCOIS Indian Ocean Depth-Slice Hydrographic Analysis\n` +
+      const summary = `### INCOIS Indian Ocean Depth-Slice Hydrographic Analysis\n` +
         `**Target Depth:** **${z} meters** &middot; **Layer Classification:** ${layerName}\n` +
         `**Reference Period:** ${displayDate} &middot; **Water Mass:** **${waterMass}**\n\n` +
         `**1. In-Situ Thermohaline Physics at ${z}m:**\n` +
@@ -1340,11 +1480,13 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         targetFactor: targetFactor || 'temperature',
         reportDate,
         displayDate,
+        generatedDates: generatedDates.length > 0 ? generatedDates : [reportDate],
         year,
         month,
         day,
         title,
         summary,
+        role: currentState?._activeRole || this.activeRole || 'general',
         metrics: {
           'Observation Depth': `${z} m`,
           'Layer Regime': layerName.split('(')[0].trim(),
@@ -1374,7 +1516,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       const sigma = (1022.4 + (1027.8 - 1022.4) * (1 - Math.exp(-baseThermocline / 450.0))).toFixed(2);
       const bruntVaisala = (parseFloat(n2) * 1000).toFixed(3);
       const geoshear = (0.005 + (month % 4) * 0.002).toFixed(4);
-      summary = `### 🔬 Physical Oceanography — Hydrographic State Analysis\n` +
+      summary = `### Physical Oceanography — Hydrographic State Analysis\n` +
         `**Target Date:** **${reportDate}** · **Period:** ${displayDate}\n` +
         `**Climate Regime:** ${climateNote}\n\n` +
         `**1. Thermohaline Stratification (Pycnocline / Thermocline):**\n` +
@@ -1398,7 +1540,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       title = `INCOIS / MoES Strategic Ocean Intelligence Brief · ${displayDate}`;
       const pfzRisk = month >= 6 && month <= 9 ? 'HIGH PRODUCTIVITY — Upwelling-Driven PFZ Zones Active' : 'MODERATE — Offshore Productivity';
       const tcRisk = baseSst > 29.5 ? 'ELEVATED — TCHP > 80 kJ/cm² (Cyclone Intensification Risk)' : 'NORMAL — Below Critical Threshold';
-      summary = `### 🏛️ INCOIS / MoES Executive Strategic Ocean Intelligence Brief\n` +
+      summary = `### INCOIS / MoES Executive Strategic Ocean Intelligence Brief\n` +
         `**Date:** **${reportDate}** · **Period:** ${displayDate}\n` +
         `**Prepared for:** Ministry of Earth Sciences (MoES), INCOIS, Coastal Stakeholders\n\n` +
         `**1. Indian EEZ Ocean Status (2.37 Million km²):**\n` +
@@ -1412,7 +1554,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         `**3. Tropical Cyclone Heat Potential (TCHP) & Disaster Readiness:**\n` +
         `- TCHP Status: **${tcRisk}**.\n` +
         `- Mixed Layer Depth: **${thermoclineD}** — shallow thermocline increases rapid intensification risk.\n` +
-        `- NDMA / Coastal Civil Defence: ${baseSst > 29.5 ? '⚠️ Pre-position emergency response assets along East & West coast zones.' : '✅ Normal readiness posture maintained.'}\n\n` +
+        `- NDMA / Coastal Civil Defence: ${baseSst > 29.5 ? 'Pre-position emergency response assets along East & West coast zones.' : 'Normal readiness posture maintained.'}\n\n` +
         `**4. In-Situ Monitoring Network Status:**\n` +
         `- Active Argo Float Network: **${activeFloats}** (CTD soundings — temperature, salinity, dissolved oxygen).\n` +
         `- Model System: HYCOM 3D assimilation confidence **${accuracy}**.\n` +
@@ -1420,24 +1562,24 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
     } else if (role === 'student') {
       title = `Ocean Explorer Report — What's Happening in the Indian Ocean? · ${displayDate}`;
       const tempDesc = baseSst > 29.5 ? 'very warm and tropical, like a giant warm bath' : 'warm but slightly cooler than usual';
-      summary = `### 🎓 Ocean Explorer — Understanding the Indian Ocean!\n` +
+      summary = `### Ocean Explorer — Understanding the Indian Ocean\n` +
         `**Date:** **${reportDate}** · **Let's explore the ocean on ${displayDate}!**\n\n` +
-        `**🌡️ How Warm is the Ocean?**\n` +
+        `**How Warm is the Ocean?**\n` +
         `- The surface of the Indian Ocean is **${sst}** — that's ${tempDesc}!\n` +
         `- The ocean is warmest at the top and gets colder as you go deeper.\n\n` +
-        `**🏊 The Thermocline — Ocean's Thermal Blanket:**\n` +
+        `**The Thermocline — Ocean's Thermal Blanket:**\n` +
         `- Imagine the ocean has a cozy blanket at about **${thermoclineD}** deep.\n` +
         `- Above the blanket: warm, sunlit, full of fish and marine life!\n` +
         `- Below the blanket: cold, dark, and very quiet (no sunlight reaches here).\n` +
         `- This "blanket" is called the **thermocline** — where temperature drops very fast!\n\n` +
-        `**🧂 Salty or Fresh?**\n` +
+        `**Salty or Fresh?**\n` +
         `- The ocean water is salty — about **${sal}** PSU (Parts per Thousand).\n` +
         `- Near rivers and during monsoon rain, the water gets less salty (Bay of Bengal: ~31.8 PSU).\n` +
         `- The Arabian Sea is saltier because more water evaporates there (36.8 PSU)!\n\n` +
-        `**🤖 Argo Robot Explorers:**\n` +
+        `**Argo Robot Explorers:**\n` +
         `- Right now, **${activeFloats}** robot floats are exploring the Indian Ocean!\n` +
         `- Each Argo float sinks to 2000m, collects temperature & salinity data, then rises and sends data via satellite — like a robotic submarine explorer!\n\n` +
-        `**🎯 Fun Challenge:** Look at the 3D ocean view and find the thermocline layer at ${thermoclineD}! How does the color change as you go deeper?`;
+        `**Observation Challenge:** Look at the 3D ocean view and find the thermocline layer at ${thermoclineD}! How does the color change as you go deeper?`;
     } else if (role === 'researcher') {
       title = `Research Diagnostic Report — Statistical Hydrographic Analysis · ${displayDate}`;
       const rmse = (0.18 + Math.random() * 0.09).toFixed(2);
@@ -1447,7 +1589,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       const meanSst = baseSst.toFixed(2);
       const stdSst = (0.45 + (month % 3) * 0.1).toFixed(2);
       const seMean = (parseFloat(stdSst) / Math.sqrt(n_obs)).toFixed(4);
-      summary = `### 📊 Research Diagnostic — Statistical Hydrographic Analysis\n` +
+      summary = `### Research Diagnostic — Statistical Hydrographic Analysis\n` +
         `**Target Date:** **${reportDate}** · **Period:** ${displayDate}\n` +
         `**Dataset:** HYCOM GLBu0.08 3D Analysis + GDAC Argo NetCDF Profiles (Indian Ocean Subset)\n\n` +
         `**1. Statistical Surface Thermal Diagnostics:**\n` +
@@ -1470,7 +1612,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
     } else {
       // General / default narrative
       title = `Historical Hydrographic Bulletin · ${reportDate} (${displayDate})`;
-      summary = `### 🌊 INCOIS Indian Ocean Hydrographic State Analysis\n` +
+      summary = `### INCOIS Indian Ocean Hydrographic State Analysis\n` +
         `**Target Date:** **${reportDate}** · **Period:** ${displayDate}\n` +
         `**Climate Context:** ${climateNote}\n\n` +
         `**1. Thermal Profile & Mixed Layer:**\n` +
@@ -1491,6 +1633,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       targetFactor: targetFactor || 'temperature',
       reportDate,
       displayDate,
+      generatedDates: generatedDates.length > 0 ? generatedDates : [reportDate],
       year,
       month,
       day,
@@ -1605,6 +1748,16 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         }
       }
 
+      // 6b. Cache Batch Dates (entire week or month)
+      if (fn === 'cache_batch_dates' || p.dates !== undefined) {
+        this._highlightFactorMenu('factor-pipeline');
+        const dates = p.dates || [];
+        if (Array.isArray(dates) && dates.length > 0) {
+          window.pipelineManager?.cacheBatchDates(dates);
+          window.pipelineManager?.requestDate(dates[0]);
+        }
+      }
+
       // 7. Layer Toggle — syncs DOM checkbox AND fires layer-toggle event
       if (fn === 'toggle_layer' || p.layer !== undefined) {
         this._highlightFactorMenu('factor-overlays');
@@ -1716,14 +1869,10 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
 
     // Determine active role for badge and styling
     const role = report.role || this.activeRole || 'general';
-    const roleIcons = {
-      oceanographer: '🔬', government: '🏛️', student: '🎓', researcher: '📊', general: '🌊'
-    };
     const roleLabels = {
       oceanographer: 'Physical Oceanographer', government: 'Government / MoES',
       student: 'Student Explorer', researcher: 'Researcher', general: 'General'
     };
-    const roleBadgeIcon = roleIcons[role] || '🌊';
     const roleBadgeLabel = roleLabels[role] || 'General';
 
     // Sync HUD role selector buttons
@@ -1763,14 +1912,14 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       .replace(/\n\n/g, '<br/>');
 
     this.els.summaryContent.innerHTML = `
-      <div class="hud-role-badge">${roleBadgeIcon} ${roleBadgeLabel}</div>
+      <div class="hud-role-badge">${roleBadgeLabel}</div>
       <div class="hud-report-title">${report.title || 'Hydrographic Analysis'}</div>
       <div class="hud-narrative">${narrativeHtml}</div>
       ${metricsHtml}
       <div class="hud-actions-bar">
-        <button id="hud-copy-btn" class="hud-action-btn" title="Copy text to clipboard">📋 Copy Report</button>
-        <button id="hud-download-btn" class="hud-action-btn" title="Save Bulletin as Text file">💾 Download Bulletin (.txt)</button>
-        <button id="hud-download-md-btn" class="hud-action-btn" title="Save as Markdown file">📥 Export (.md)</button>
+        <button id="hud-copy-btn" class="hud-action-btn" title="Copy text to clipboard">Copy Report</button>
+        <button id="hud-download-btn" class="hud-action-btn" title="Save Bulletin as Text file">Download Bulletin (.txt)</button>
+        <button id="hud-download-md-btn" class="hud-action-btn" title="Save as Markdown file">Export Markdown (.md)</button>
       </div>
     `;
 
@@ -1780,8 +1929,8 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         Object.entries(report.metrics || {}).map(([k, v]) => `- ${k}: ${v}`).join('\n');
       navigator.clipboard?.writeText(fullReportText);
       const btn = document.getElementById('hud-copy-btn');
-      if (btn) btn.textContent = '✅ Copied!';
-      setTimeout(() => { if (btn) btn.textContent = '📋 Copy Report'; }, 2000);
+      if (btn) btn.textContent = 'Copied!';
+      setTimeout(() => { if (btn) btn.textContent = 'Copy Report'; }, 2000);
     });
 
     // Download TXT
@@ -1836,7 +1985,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
   }
 
   async handleFileUpload(file) {
-    this.appendMessage('user', `📎 Uploading dataset: *${file.name}*...`);
+    this.appendMessage('user', `Uploading dataset: *${file.name}*...`);
     const loadingId = this.appendLoadingMessage('Ingesting dataset dimensions...');
 
     const formData = new FormData();
@@ -1851,10 +2000,10 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       this.removeLoadingMessage(loadingId);
 
       this.activeContext = `Uploaded Dataset: ${data.summary || file.name}`;
-      this.appendMessage('bot', `✅ **Dataset Ingested**: ${data.summary || 'Context stored for queries.'}`);
+      this.appendMessage('bot', `**Dataset Ingested**: ${data.summary || 'Context stored for queries.'}`);
     } catch (err) {
       this.removeLoadingMessage(loadingId);
-      this.appendMessage('bot', `⚠️ Upload failed: ${err.message}. Ready for direct queries.`);
+      this.appendMessage('bot', `Upload failed: ${err.message}. Ready for direct queries.`);
     }
   }
 
@@ -1878,14 +2027,44 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
     // 0. Dedicated Cache Management & Date Pipeline Voice Commands
     const isDeleteCache = p.includes('delete') || p.includes('remove') || p.includes('clear') || p.includes('drop') || p.includes('erase');
     const isRestoreCache = p.includes('restore') || p.includes('reset cache') || p.includes('default cache') || p.includes('restore cached');
-    const isCacheKeyword = p.includes('cache') || p.includes('cached') || p.includes('date navigator');
-    const isLoadOrFetch = p.includes('load') || p.includes('fetch') || p.includes('cache') || p.includes('download') || p.includes('get data') || p.includes('bring') || p.includes('pull');
+    const isCacheKeyword = p.includes('cache') || p.includes('cached') || p.includes('date navigator') || p.includes('timeline') || p.includes('date and timeline') || p.includes('dates');
+    const isLoadOrFetch = p.includes('load') || p.includes('fetch') || p.includes('cache') || p.includes('download') || p.includes('get data') || p.includes('bring') || p.includes('pull') || p.includes('add') || p.includes('insert') || p.includes('include') || p.includes('store') || p.includes('save') || p.includes('put');
+
+    // Year correction / standalone year command (e.g. "i said 2021", "2021", "for 2021", "year 2021")
+    const isYearCorrection = /\b(?:i\s+said|i\s+meant|year|in|for)?\s*(19\d{2}|20\d{2})\b/i.test(p);
+    if (isYearCorrection && !p.includes('report') && !p.includes('summary') && !p.includes('show') && !hasMonth && !hasWeek) {
+      const ym = p.match(/\b(19\d{2}|20\d{2})\b/);
+      if (ym) {
+        const corrYear = parseInt(ym[1], 10);
+        const baseQ = this.lastReportQuery || '1st week of september';
+        const updatedQ = `${baseQ.replace(/\b(19\d{2}|20\d{2})\b/g, '')} ${corrYear}`;
+        const rep = this._parseReportDateAndMetrics(updatedQ, currentState, this.activeRole);
+        if (rep && rep.generatedDates && rep.generatedDates.length > 0) {
+          window.pipelineManager?.cacheBatchDates(rep.generatedDates);
+          window.pipelineManager?.requestDate(rep.generatedDates[0]);
+          this.lastReportGeneratedDates = rep.generatedDates;
+          this.lastReportQuery = updatedQ;
+          this.lastReportParams = { date: rep.reportDate, depth: rep.targetDepth, variable: rep.targetVar };
+          this.renderSummaryReport({
+            title: rep.title,
+            date: rep.reportDate,
+            summary: rep.summary,
+            metrics: rep.metrics,
+            role: rep.role
+          });
+          appliedChips.push(`Cache → +${rep.generatedDates.length} Dates`);
+          appliedChips.push(`Date → ${rep.generatedDates[0]}`);
+          this.appendMessage('bot', `**Updated to ${corrYear}**: Added **${rep.generatedDates.length}** dates for **${rep.displayDate}** into the Date Navigator & Timeline. Sourced 3D ocean state for **${rep.generatedDates[0]}** and generated full Hydrographic AI Bulletin in the HUD.`, appliedChips);
+          return;
+        }
+      }
+    }
 
     // 0a. Restore / Reset Default Cache
     if (isRestoreCache && (isCacheKeyword || p.includes('dates') || p.includes('default'))) {
       window.pipelineManager?.restoreDefaultDates();
       appliedChips.push('Cache → Restored Defaults');
-      this.appendMessage('bot', `🔄 **Default Cached Dates Restored**: Re-synchronized all 16 INCOIS/HYCOM dates into the Date Navigator.`, appliedChips);
+      this.appendMessage('bot', `**Default Cached Dates Restored**: Re-synchronized all 16 INCOIS/HYCOM dates into the Date Navigator.`, appliedChips);
       return;
     }
 
@@ -1893,8 +2072,46 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
     if (isDeleteCache && (p.includes('all cache') || p.includes('all cached') || p.includes('clear cache') || p.includes('clear cached') || p.includes('empty cache'))) {
       window.pipelineManager?.clearAllCached();
       appliedChips.push('Cache → Cleared');
-      this.appendMessage('bot', `🗑️ **Cached Dates Cleared**: All cached date tiles removed from local storage. You can click *"↺ Reset"* to restore defaults anytime.`, appliedChips);
+      this.appendMessage('bot', `**Cached Dates Cleared**: All cached date tiles removed from local storage. You can click *"Reset"* to restore defaults anytime.`, appliedChips);
       return;
+    }
+
+    // 0b-2. Add recent report's dates into timeline / cached dates
+    const isAddRecentReport = (p.includes('add') || p.includes('cache') || p.includes('insert') || p.includes('put') || p.includes('include') || p.includes('store')) &&
+      (p.includes('just now') || p.includes('these dates') || p.includes('this week') || p.includes('this report') || (p.includes('report') && (p.includes('menu') || p.includes('timeline') || p.includes('cache') || p.includes('dates'))));
+
+    if (isAddRecentReport) {
+      let datesToCache = [];
+      if (this.lastReportGeneratedDates && this.lastReportGeneratedDates.length > 0) {
+        datesToCache = [...this.lastReportGeneratedDates];
+      } else if (this.lastReportParams && this.lastReportParams.date) {
+        const dStr = this.lastReportParams.date;
+        if (dStr.includes('to')) {
+          const parts = dStr.split('to').map(s => s.trim());
+          const start = new Date(parts[0]);
+          const end = new Date(parts[1]);
+          if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+            for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+              const y = dt.getFullYear();
+              const m = String(dt.getMonth() + 1).padStart(2, '0');
+              const d = String(dt.getDate()).padStart(2, '0');
+              datesToCache.push(`${y}-${m}-${d}`);
+            }
+          }
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+          datesToCache.push(dStr);
+        }
+      }
+
+      if (datesToCache.length > 0) {
+        window.pipelineManager?.cacheBatchDates(datesToCache);
+        const firstDate = datesToCache[0];
+        window.pipelineManager?.requestDate(firstDate);
+        appliedChips.push(`Cache → +${datesToCache.length} Dates`);
+        appliedChips.push(`Date → ${firstDate}`);
+        this.appendMessage('bot', `**Report Dates Added to Timeline**: Synchronized **${datesToCache.length}** dates (${datesToCache[0]} to ${datesToCache[datesToCache.length - 1]}) from the recent hydrographic bulletin into the Date Navigator & Timeline. Active 3D state set to **${firstDate}**.`, appliedChips);
+        return;
+      }
     }
 
     // 0c. Delete Specific Date or Period from Cache
@@ -1915,9 +2132,8 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
           if (matchingInYear.length === 1 && !p.includes('all')) {
             targetDateToDelete = matchingInYear[0];
           } else {
-            // Check if prompt contains month/day fragments (e.g. 09-06 or 69 or 9 6 or 04)
             for (const d of matchingInYear) {
-              const parts = d.split('-'); // [2022, 09, 06]
+              const parts = d.split('-');
               const mm = parts[1];
               const dd = parts[2];
               if (p.includes(`${mm}-${dd}`) || p.includes(`${dd}-${mm}`) || (p.includes(mm) && p.includes(dd)) || p.includes(`${parseInt(mm,10)} ${parseInt(dd,10)}`) || p.includes(`${dd}${mm}`) || p.includes(`${mm}${dd}`)) {
@@ -1933,7 +2149,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         const ok = window.pipelineManager?.deleteDate(targetDateToDelete);
         if (ok) {
           appliedChips.push(`Cache → Deleted ${targetDateToDelete}`);
-          this.appendMessage('bot', `🗑️ **Cached Date Removed**: Deleted **${targetDateToDelete}** from the Date Navigator cache.`, appliedChips);
+          this.appendMessage('bot', `**Cached Date Removed**: Deleted **${targetDateToDelete}** from the Date Navigator cache.`, appliedChips);
           return;
         }
       }
@@ -1943,7 +2159,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         const prefix = `${rep.year}-${String(rep.month).padStart(2, '0')}`;
         const deletedCount = window.pipelineManager?.deleteDatesMatching(d => d.startsWith(prefix)) || 0;
         appliedChips.push(`Cache → -${deletedCount} Dates`);
-        this.appendMessage('bot', `🗑️ **Month Removed from Cache**: Deleted **${deletedCount}** cached date(s) for **${rep.displayDate}**.`, appliedChips);
+        this.appendMessage('bot', `**Month Removed from Cache**: Deleted **${deletedCount}** cached date(s) for **${rep.displayDate}**.`, appliedChips);
         return;
       }
 
@@ -1952,54 +2168,36 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         const prefix = `${rep.year}-`;
         const deletedCount = window.pipelineManager?.deleteDatesMatching(d => d.startsWith(prefix)) || 0;
         appliedChips.push(`Cache → -${deletedCount} Dates`);
-        this.appendMessage('bot', `🗑️ **Year Removed from Cache**: Deleted **${deletedCount}** cached date(s) for year **${rep.year}**.`, appliedChips);
+        this.appendMessage('bot', `**Year Removed from Cache**: Deleted **${deletedCount}** cached date(s) for year **${rep.year}**.`, appliedChips);
         return;
       }
     }
 
     // 0d. Load / Cache Whole Week or Month Voice Command
-    if (isLoadOrFetch && (p.includes('week') || p.includes('month') || p.includes('whole') || p.includes('all dates') || p.includes('all data'))) {
+    if (isLoadOrFetch && (p.includes('week') || p.includes('month') || p.includes('whole') || p.includes('all dates') || p.includes('all data') || p.includes('dates') || p.includes('days'))) {
       const rep = this._parseReportDateAndMetrics(p, currentState, this.activeRole);
-      if (rep) {
-        let generatedDates = [];
-        let label = '';
-        if (p.includes('week') || p.includes('7 day')) {
-          const startDate = new Date(rep.year, rep.month - 1, rep.day);
-          for (let i = 0; i < 7; i++) {
-            const cur = new Date(startDate);
-            cur.setDate(startDate.getDate() + i);
-            const y = cur.getFullYear();
-            const m = String(cur.getMonth() + 1).padStart(2, '0');
-            const d = String(cur.getDate()).padStart(2, '0');
-            generatedDates.push(`${y}-${m}-${d}`);
-          }
-          label = `Week of ${rep.displayDate}`;
-        } else if (p.includes('month') || hasMonth) {
-          const daysInMonth = new Date(rep.year, rep.month, 0).getDate();
-          const step = Math.max(1, Math.floor(daysInMonth / 6));
-          for (let d = 1; d <= daysInMonth; d += step) {
-            const m = String(rep.month).padStart(2, '0');
-            const dayStr = String(d).padStart(2, '0');
-            generatedDates.push(`${rep.year}-${m}-${dayStr}`);
-          }
-          const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-          label = `Month of ${monthNames[rep.month]} ${rep.year}`;
-        } else if (hasYear) {
-          ['01-04', '03-21', '08-02', '08-31', '09-05', '09-07'].forEach(s => {
-            generatedDates.push(`${rep.year}-${s}`);
-          });
-          label = `Year ${rep.year}`;
-        }
+      if (rep && rep.generatedDates && rep.generatedDates.length > 0) {
+        const generatedDates = rep.generatedDates;
+        window.pipelineManager?.cacheBatchDates(generatedDates);
+        const firstDate = generatedDates[0];
+        window.pipelineManager?.requestDate(firstDate);
+        this.lastReportGeneratedDates = generatedDates;
+        this.lastReportQuery = rawPrompt || p;
+        this.lastReportParams = { date: rep.reportDate, depth: rep.targetDepth, variable: rep.targetVar };
 
-        if (generatedDates.length > 0) {
-          window.pipelineManager?.cacheBatchDates(generatedDates);
-          const firstDate = generatedDates[0];
-          window.pipelineManager?.requestDate(firstDate);
-          appliedChips.push(`Cache → +${generatedDates.length} Dates`);
-          appliedChips.push(`Date → ${firstDate}`);
-          this.appendMessage('bot', `🌊 **Batch Data Cached**: Loaded **${generatedDates.length}** dates for **${label}** into the Date Navigator grid. Synchronized 3D ocean state to **${firstDate}**.`, appliedChips);
-          return;
-        }
+        // Also render HUD summary report for immediate inspection
+        this.renderSummaryReport({
+          title: rep.title,
+          date: rep.reportDate,
+          summary: rep.summary,
+          metrics: rep.metrics,
+          role: rep.role
+        });
+
+        appliedChips.push(`Cache → +${generatedDates.length} Dates`);
+        appliedChips.push(`Date → ${firstDate}`);
+        this.appendMessage('bot', `**Batch Data Cached & Synced**: Added **${generatedDates.length}** dates for **${rep.displayDate}** into the Date Navigator & Timeline. Sourced 3D ocean state for **${firstDate}** and generated full Hydrographic AI Bulletin in the HUD.`, appliedChips);
+        return;
       }
     }
 
@@ -2010,7 +2208,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         window.pipelineManager?.requestDate(rep.reportDate);
         appliedChips.push(`Date → ${rep.reportDate}`);
         appliedChips.push('Pipeline → Loaded');
-        this.appendMessage('bot', `🌊 **Date Loaded**: Sourced and visualized 3D ocean data for **${rep.displayDate}** (${rep.reportDate}).`, appliedChips);
+        this.appendMessage('bot', `**Date Loaded**: Sourced and visualized 3D ocean data for **${rep.displayDate}** (${rep.reportDate}).`, appliedChips);
         return;
       }
     }
@@ -2018,6 +2216,14 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
     // 1. Date & Report & Factor Query Detection (Universal: any year, month, day, depth, or factor report)
     if (isReportKeyword || (hasYear && (p.includes('show') || p.includes('state') || p.includes('condition') || p.includes('data') || p.includes('ocean'))) || (hasMonth && (hasYear || p.includes('report') || p.includes('show') || p.includes('give') || p.includes('state'))) || hasWeek) {
       const rep = this._parseReportDateAndMetrics(p, currentState, this.activeRole);
+
+      // Auto-cache batch dates into timeline if a week/month or cache command was mentioned
+      if (rep.generatedDates && rep.generatedDates.length > 0 && (p.includes('add') || p.includes('cache') || p.includes('date') || isWeekly || p.includes('timeline') || p.includes('week'))) {
+        window.pipelineManager?.cacheBatchDates(rep.generatedDates);
+        window.pipelineManager?.requestDate(rep.generatedDates[0]);
+        appliedChips.push(`Cache → +${rep.generatedDates.length} Dates`);
+        appliedChips.push(`Date → ${rep.generatedDates[0]}`);
+      }
 
       // Render HUD Summary Overlay
       this.renderSummaryReport({
@@ -2066,10 +2272,11 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
       }
 
       const syncNote = rep.targetFactor ? ` (3D layer **${rep.targetFactor}** activated)` : (rep.targetDepth !== null ? ` (3D depth slice synchronized to **${rep.targetDepth}m**)` : '');
-      // Cache for role-based re-generation
+      // Cache for role-based re-generation and timeline syncing
       this.lastReportQuery = rawPrompt || p;
       this.lastReportParams = { date: rep.reportDate, depth: rep.targetDepth, variable: rep.targetVar };
-      this.appendMessage('bot', `📊 **${rep.title}** generated${syncNote}. Full breakdown is open in the HUD with download options.`, appliedChips);
+      this.lastReportGeneratedDates = rep.generatedDates && rep.generatedDates.length > 0 ? rep.generatedDates : [rep.reportDate];
+      this.appendMessage('bot', `**${rep.title}** generated${syncNote}. Full breakdown is open in the HUD with download options.`, appliedChips);
       return;
     }
 
@@ -2282,29 +2489,29 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         this.themeManager.cycleTheme();
         const info = this.themeManager.getThemeInfo();
         const themeObj = info.themeList.find(t => t.id === info.theme);
-        appliedChips.push(`Theme → ${themeObj?.icon || ''} ${themeObj?.name || info.theme}`);
-        this.appendMessage('bot', `🎨 **Theme cycled** to: **${themeObj?.icon || ''} ${themeObj?.name || info.theme}**. You can cycle again or say *"switch to [theme name] theme"*.`, appliedChips);
+        appliedChips.push(`Theme → ${themeObj?.name || info.theme}`);
+        this.appendMessage('bot', `**Theme cycled** to: **${themeObj?.name || info.theme}**. You can cycle again or say *"switch to [theme name] theme"*.`, appliedChips);
         return;
       }
 
       // 9b-ii. Mode-only toggle
       if ((p.includes('dark mode') || p.includes('night mode') || p.includes('dark theme')) && !p.includes('light')) {
         this.themeManager.setMode('dark');
-        appliedChips.push('Mode → 🌙 Dark');
-        this.appendMessage('bot', '🌙 **Dark Mode activated.** All themes switched to dark palette.', appliedChips);
+        appliedChips.push('Mode → Dark');
+        this.appendMessage('bot', '**Dark Mode activated.** All themes switched to dark palette.', appliedChips);
         return;
       }
       if (p.includes('light mode') || p.includes('day mode') || p.includes('light theme')) {
         this.themeManager.setMode('light');
-        appliedChips.push('Mode → ☀️ Light');
-        this.appendMessage('bot', '☀️ **Light Mode activated.** All themes switched to light palette.', appliedChips);
+        appliedChips.push('Mode → Light');
+        this.appendMessage('bot', '**Light Mode activated.** All themes switched to light palette.', appliedChips);
         return;
       }
       if (p.includes('toggle mode') || p.includes('switch mode') || p.includes('flip mode')) {
         this.themeManager.toggleMode();
         const newMode = this.themeManager.currentMode;
-        appliedChips.push(`Mode → ${newMode === 'dark' ? '🌙 Dark' : '☀️ Light'}`);
-        this.appendMessage('bot', `${newMode === 'dark' ? '🌙 Dark' : '☀️ Light'} **mode toggled.**`, appliedChips);
+        appliedChips.push(`Mode → ${newMode === 'dark' ? 'Dark' : 'Light'}`);
+        this.appendMessage('bot', `${newMode === 'dark' ? 'Dark' : 'Light'} **mode toggled.**`, appliedChips);
         return;
       }
 
@@ -2319,12 +2526,12 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
         }
         const info = this.themeManager.getThemeInfo();
         const themeObj = info.themeList.find(t => t.id === info.theme);
-        const modeLabel = info.mode === 'dark' ? '🌙 Dark' : '☀️ Light';
-        appliedChips.push(`Theme → ${themeObj?.icon || ''} ${themeObj?.name || info.theme}`);
+        const modeLabel = info.mode === 'dark' ? 'Dark' : 'Light';
+        appliedChips.push(`Theme → ${themeObj?.name || info.theme}`);
         appliedChips.push(`Mode → ${modeLabel}`);
         this.appendMessage(
           'bot',
-          `🎨 **Theme applied**: **${themeObj?.icon || ''} ${themeObj?.name || info.theme}** (${modeLabel} mode).\n\n${themeObj?.description || ''}\n\n💡 *Tip: You can also cycle themes with Shift+T or switch modes with Shift+M.*`,
+          `**Theme applied**: **${themeObj?.name || info.theme}** (${modeLabel} mode).\n\n${themeObj?.description || ''}\n\n*Tip: You can also cycle themes with Shift+T or switch modes with Shift+M.*`,
           appliedChips
         );
         return;
@@ -2401,7 +2608,7 @@ If the user asks for a report, bulletin, or summary, populate "report" with { "t
     if (actions.length > 0) {
       this.executeSceneActions(actions);
       const chipsDisplay = appliedChips.length > 0 ? appliedChips.join(', ') : 'parameters';
-      this.appendMessage('bot', `⚡ **3D Scene updated**: Applied — ${chipsDisplay}.`, appliedChips);
+      this.appendMessage('bot', `**3D Scene updated**: Applied — ${chipsDisplay}.`, appliedChips);
     } else {
       this.appendMessage('bot', `I analyzed: "${prompt}". Try: Reports "report 9th May 2024" | 3D: "show currents", "go to 150m", "switch to salinity" | Timestep: "play animation", "pause animation" | Themes: "switch to government theme", "activate student theme", "use dark mode", "cycle theme".`);
     }

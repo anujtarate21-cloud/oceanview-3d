@@ -115,8 +115,9 @@ export class ArgoInteraction {
         const id = data.float_id || data.id || '';
         const lat = Number(data.lat || 0).toFixed(2);
         const lon = Number(data.lon || 0).toFixed(2);
+        const depth = Math.round(data.depth || data.current_depth || 0);
         const date = data.date || '';
-        this.tooltip.innerHTML = `<div><strong>${name} ${id}</strong></div><div style="font-size:10px;opacity:0.75;margin-top:2px;">${lat}°N, ${lon}°E · ${date}</div>`;
+        this.tooltip.innerHTML = `<div><strong>${name} ${id}</strong></div><div style="font-size:10px;opacity:0.85;margin-top:2px;">${lat}°N, ${lon}°E · Depth: ${depth}m · ${date}</div>`;
       }
 
       if (this.coordsEl) {

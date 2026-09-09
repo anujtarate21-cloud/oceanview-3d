@@ -1,301 +1,362 @@
 import * as THREE from 'three';
-import { latLonDepthToXYZ, getDepthZ } from '../utils/coordTransform.js';
+import { latLonDepthToXYZ } from '../utils/coordTransform.js';
 
 /**
- * 3D Ocean Current Vector Field (Stretch Feature)
- * Renders directional 3D vector arrows and flow pulses for u/v ocean velocity
- * across the Indian Ocean basin (Somali current, WICC, EICC, and Equatorial Wyrtki Jet).
- * Dynamically updates based on the active date and depth slice selected in Date Navigator.
+ * CurrentVectors.js — High-Divergence Palette 3D Ocean Streamlines
+ * for OceanView 3D (INCOIS / MoES).
+ *
+ * Renders sleek 3D stream capsules (using InstancedMesh) elevated above the volume plane for
+ * high visibility against bright scalar surface maps.
+ *
+ * Speed Categories use high-contrast fills with darker same-family outlines.
  */
+
+// ── Performance & Scale Constants ────────────────────────────────────────────
+const PARTICLE_COUNT = 240;  // Sleek, well-spaced 3D stream capsules across the Indian Ocean
+const ADVECT_SCALE   = 1.0;  // Visual degrees lat/lon per m/s per second
+const MIN_AGE        = 3.0;  // Minimum particle lifetime (seconds)
+const MAX_AGE        = 5.0;  // Maximum particle lifetime (seconds)
+const MAX_DT         = 0.05; // Frame delta cap (seconds)
+const Z_NUDGE        = 0.15; // Z-elevation offset to float cleanly right above volume plane
+
+// ── Speed colors chosen for strong contrast over the model surface
+const COLOR_SLOW          = new THREE.Color('#007C91'); // < 0.4 m/s (deep cyan)
+const COLOR_MODERATE      = new THREE.Color('#FF9800'); // 0.4 - 0.7 m/s (bright amber)
+const COLOR_FAST          = new THREE.Color('#FF000D'); // > 0.7 m/s (bright red)
+
+// Reusable matrix / vector / quaternion objects to avoid GC allocation per frame
+const _tempColor     = new THREE.Color();
+const _tempPos       = new THREE.Vector3();
+const _tempScale     = new THREE.Vector3();
+const _tempRot       = new THREE.Quaternion();
+const _tempMatrix    = new THREE.Matrix4();
+const _euler         = new THREE.Euler();
+
+// Velocity grid bounds — Indian Ocean domain (2°N–24°N, 62°E–94°E)
+const LAT_MIN   = 2,  LAT_MAX  = 24, LAT_STEP  = 1.0;
+const LON_MIN   = 62, LON_MAX  = 94, LON_STEP  = 1.0;
+const GRID_LATS = Math.floor((LAT_MAX - LAT_MIN) / LAT_STEP) + 1; // 23
+const GRID_LONS = Math.floor((LON_MAX - LON_MIN) / LON_STEP) + 1; // 33
+
 export class CurrentVectors {
+  /**
+   * @param {THREE.Scene} scene
+   * @param {string} [initialDate='2023-03-21']
+   */
   constructor(scene, initialDate = '2023-03-21') {
-    this.scene = scene;
-    this.visible = false;
+    this.scene        = scene;
+    this.visible      = false;
     this.exaggeration = 50;
-    this.currentDate = initialDate;
-    this.activeDepth = 0;
+    this.currentDate  = initialDate;
+    this.activeDepth  = 0;
+
     this.group = new THREE.Group();
-    this.group.name = 'CurrentVectorsLayer';
-    this.group.visible = this.visible;
+    this.group.name    = 'CurrentVectorsLayer';
+    this.group.visible = false;
     this.scene.add(this.group);
 
-    this.instances = [];
-    this.arrowMesh = null;
-    this.flowParticles = null;
-    this.vectorData = [];
-    this.pMeta = [];
-    this._initVectors();
+    // 1° x 1° velocity grid: Float32Array[GRID_LATS x GRID_LONS x 3] -> (u, v, speed)
+    this.velGrid = null;
+    this.pData   = new Array(PARTICLE_COUNT);
+
+    this.instancedMesh = null;
+    this._lastTimeMs   = null;
+
+    this._buildVelocityGrid();
+    this._initStreamlines();
   }
+
+  // ── SYNTHETIC VELOCITY FIELD GENERATOR ──
 
   _computeCurrentAt(lat, lon, depth, dateStr) {
     const month = dateStr ? parseInt(dateStr.split('-')[1], 10) : 8;
-    const day = dateStr ? parseInt(dateStr.split('-')[2] || '15', 10) : 15;
+    const day   = dateStr ? parseInt(dateStr.split('-')[2] || '15', 10) : 15;
 
-    let swMonsoon = 0.0;
-    let neMonsoon = 0.0;
-    let wyrtki = 0.0;
+    let swMonsoon = 0.0, neMonsoon = 0.0, wyrtki = 0.0;
 
     if (month >= 6 && month <= 9) {
       swMonsoon = (month === 7 || month === 8) ? 1.0 : 0.8;
     } else if (month === 12 || month <= 2) {
       neMonsoon = (month === 1) ? 1.0 : 0.85;
     } else if (month === 4 || month === 5) {
-      wyrtki = 1.0;
-      swMonsoon = 0.35;
+      wyrtki = 1.0; swMonsoon = 0.35;
     } else if (month === 10 || month === 11) {
-      wyrtki = 0.9;
-      neMonsoon = 0.45;
+      wyrtki = 0.9; neMonsoon = 0.45;
     } else {
-      wyrtki = 0.5;
-      swMonsoon = 0.2;
+      wyrtki = 0.5; swMonsoon = 0.2;
     }
 
-    let u = 0.0;
-    let v = 0.0;
+    let u = 0.0, v = 0.0;
 
-    // 1. Somali western boundary current (strong northward in SW monsoon, reverses in NE monsoon)
+    // 1. Somali Western Boundary Current (strong northward in SW monsoon, reverses in NE)
     if (lon < 68 && lat < 16) {
       const somaliV = swMonsoon > 0 ? (1.25 * swMonsoon) : (-0.55 * neMonsoon);
-      const somaliU = swMonsoon > 0 ? (0.45 * swMonsoon) : (-0.2 * neMonsoon);
+      const somaliU = swMonsoon > 0 ? (0.45 * swMonsoon) : (-0.2  * neMonsoon);
       v += somaliV * Math.exp(-depth / 300);
       u += somaliU * Math.exp(-depth / 300);
     }
 
-    // 2. West India Coastal Current (WICC) - southward in summer / northward in winter
+    // 2. West India Coastal Current (WICC)
     if (lon >= 68 && lon <= 75 && lat >= 8 && lat <= 22) {
       const wiccV = (neMonsoon * 0.65) - (swMonsoon * 0.7);
       v += wiccV * Math.exp(-depth / 200);
       u -= 0.15 * Math.sin(lat * 0.4);
     }
 
-    // 3. East India Coastal Current (EICC) - Bay of Bengal cyclonic/anticyclonic gyre
+    // 3. East India Coastal Current (EICC)
     if (lon >= 80 && lon <= 90 && lat >= 10 && lat <= 22) {
       const eiccV = (swMonsoon * 0.55) - (neMonsoon * 0.5);
       v += eiccV * Math.exp(-depth / 250);
       u += 0.3 * Math.sin(lat * 0.3) * Math.exp(-depth / 250);
     }
 
-    // 4. Equatorial Wyrtki Jet along 0-5°N (semi-annual eastward surge during transitions)
+    // 4. Equatorial Wyrtki Jet (0–5°N)
     if (lat <= 6) {
       const jetSpeed = 0.95 * wyrtki + 0.35 * swMonsoon + 0.15;
       u += jetSpeed * Math.exp(-depth / 150);
     }
 
-    // Background dynamic eddies modulated by calendar date
+    // Background dynamic eddies
     const eddyPhase = (month * 30 + day) * 0.05;
-    u += 0.16 * Math.sin(lat * 0.45 + lon * 0.3 + eddyPhase);
-    v += 0.16 * Math.cos(lat * 0.4 - lon * 0.25 + eddyPhase);
+    u += 0.16 * Math.sin(lat * 0.45 + lon * 0.3  + eddyPhase);
+    v += 0.16 * Math.cos(lat * 0.4  - lon * 0.25 + eddyPhase);
 
     const speed = Math.sqrt(u * u + v * v);
     return { u, v, speed };
   }
 
-  _initVectors() {
-    const vectorData = [];
-    const depths = [0, 50, 150, 500];
+  // ── Land Mask Compliance ──────────────────────────────────────────────────
 
-    for (let lat = 2; lat <= 24; lat += 2.0) {
-      for (let lon = 62; lon <= 94; lon += 2.0) {
-        // Exclude land (India subcontinent approximation)
-        if (lat > 8 && lat < 26 && lon > 74 && lon < 85 && (lat - 8) > (lon - 74) * 0.8 && (lat - 8) < (90 - lon) * 1.5) {
-          continue;
-        }
-
-        for (const depth of depths) {
-          const calc = this._computeCurrentAt(lat, lon, depth, this.currentDate);
-          if (calc.speed < 0.08) continue;
-          vectorData.push({ lat, lon, depth, u: calc.u, v: calc.v, speed: calc.speed });
-        }
-      }
-    }
-
-    this.vectorData = vectorData;
-    const count = vectorData.length;
-
-    // Arrow geometry: cone head
-    const arrowGeom = new THREE.ConeGeometry(0.22, 0.7, 6);
-    arrowGeom.rotateX(Math.PI / 2);
-
-    const arrowMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.3,
-      metalness: 0.2,
-    });
-
-    this.arrowMesh = new THREE.InstancedMesh(arrowGeom, arrowMat, count);
-    this.arrowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-
-    const colors = new Float32Array(count * 3);
-    const dummy = new THREE.Object3D();
-
-    vectorData.forEach((vec, i) => {
-      const pos = latLonDepthToXYZ(vec.lat, vec.lon, vec.depth, { verticalExaggeration: this.exaggeration });
-      dummy.position.set(pos.x, pos.y, pos.z);
-
-      const angle = Math.atan2(vec.v, vec.u);
-      dummy.rotation.set(0, 0, angle - Math.PI / 2);
-
-      const scale = Math.min(1.8, Math.max(0.6, vec.speed * 1.5));
-      dummy.scale.set(scale, scale, scale);
-      dummy.updateMatrix();
-
-      this.arrowMesh.setMatrixAt(i, dummy.matrix);
-
-      const t = Math.min(1.0, Math.max(0.0, (vec.speed - 0.1) / 0.9));
-      const col = new THREE.Color();
-      if (t < 0.33) {
-        col.setRGB(0.0, 0.85 + t * 0.45, 0.9);
-      } else if (t < 0.66) {
-        col.setRGB((t - 0.33) * 3.0, 0.95, 0.4);
-      } else {
-        col.setRGB(1.0, 0.8 - (t - 0.66) * 1.8, 0.2);
-      }
-
-      colors[i * 3] = col.r;
-      colors[i * 3 + 1] = col.g;
-      colors[i * 3 + 2] = col.b;
-    });
-
-    this.arrowMesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
-    this.group.add(this.arrowMesh);
-
-    // Dynamic animated streamline particles
-    const particleCount = 450;
-    const pGeom = new THREE.BufferGeometry();
-    const pPos = new Float32Array(particleCount * 3);
-    const pMeta = [];
-
-    for (let i = 0; i < particleCount; i++) {
-      const parentVec = vectorData[Math.floor(Math.random() * vectorData.length)];
-      const pos = latLonDepthToXYZ(parentVec.lat, parentVec.lon, parentVec.depth, { verticalExaggeration: this.exaggeration });
-      pPos[i * 3] = pos.x;
-      pPos[i * 3 + 1] = pos.y;
-      pPos[i * 3 + 2] = pos.z;
-
-      pMeta.push({
-        baseX: pos.x,
-        baseY: pos.y,
-        baseZ: pos.z,
-        vx: parentVec.u * 0.8,
-        vy: parentVec.v * 0.8,
-        progress: Math.random(),
-        speed: parentVec.speed * 0.02 + 0.005,
-      });
-    }
-
-    pGeom.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-
-    const pMat = new THREE.PointsMaterial({
-      color: 0x00ffff,
-      size: 0.35,
-      transparent: true,
-      opacity: 0.75,
-      blending: THREE.AdditiveBlending,
-    });
-
-    this.flowParticles = new THREE.Points(pGeom, pMat);
-    this.pMeta = pMeta;
-    this.group.add(this.flowParticles);
+  _isLand(lat, lon) {
+    return (lat > 8 && lat < 26 && lon > 74 && lon < 85 &&
+            (lat - 8) > (lon - 74) * 0.8 &&
+            (lat - 8) < (90 - lon) * 1.5);
   }
+
+  // ── 1° Grid & Bilinear Interpolation (Smooth Advection) ───────────────────
+
+  _buildVelocityGrid() {
+    if (!this.velGrid) {
+      this.velGrid = new Float32Array(GRID_LATS * GRID_LONS * 3);
+    }
+    for (let li = 0; li < GRID_LATS; li++) {
+      for (let lj = 0; lj < GRID_LONS; lj++) {
+        const lat = LAT_MIN + li * LAT_STEP;
+        const lon = LON_MIN + lj * LON_STEP;
+        const idx = (li * GRID_LONS + lj) * 3;
+        if (this._isLand(lat, lon)) {
+          this.velGrid[idx] = this.velGrid[idx + 1] = this.velGrid[idx + 2] = 0;
+        } else {
+          const c = this._computeCurrentAt(lat, lon, this.activeDepth, this.currentDate);
+          this.velGrid[idx]     = c.u;
+          this.velGrid[idx + 1] = c.v;
+          this.velGrid[idx + 2] = c.speed;
+        }
+      }
+    }
+  }
+
+  _sampleVelocity(lat, lon) {
+    const cLat = Math.max(LAT_MIN, Math.min(LAT_MAX, lat));
+    const cLon = Math.max(LON_MIN, Math.min(LON_MAX, lon));
+
+    const lf  = (cLat - LAT_MIN) / LAT_STEP;
+    const lof = (cLon - LON_MIN) / LON_STEP;
+    const li0 = Math.floor(lf),  li1 = Math.min(li0 + 1, GRID_LATS - 1);
+    const lj0 = Math.floor(lof), lj1 = Math.min(lj0 + 1, GRID_LONS - 1);
+    const tl  = lf - li0, tlo = lof - lj0;
+
+    const w00 = (1 - tl) * (1 - tlo);
+    const w01 = (1 - tl) * tlo;
+    const w10 = tl * (1 - tlo);
+    const w11 = tl * tlo;
+
+    const g   = this.velGrid;
+    const i00 = (li0 * GRID_LONS + lj0) * 3;
+    const i01 = (li0 * GRID_LONS + lj1) * 3;
+    const i10 = (li1 * GRID_LONS + lj0) * 3;
+    const i11 = (li1 * GRID_LONS + lj1) * 3;
+
+    const u     = w00*g[i00]   + w01*g[i01]   + w10*g[i10]   + w11*g[i11];
+    const v     = w00*g[i00+1] + w01*g[i01+1] + w10*g[i10+1] + w11*g[i11+1];
+    const speed = Math.sqrt(u * u + v * v);
+    return { u, v, speed };
+  }
+
+  // ── Speed-to-Color Ramping (High-Divergence Palette) ─────────────────────
+
+  _speedToColor(speed) {
+    if (speed < 0.4) return _tempColor.copy(COLOR_SLOW);
+    if (speed <= 0.7) return _tempColor.copy(COLOR_MODERATE);
+    return _tempColor.copy(COLOR_FAST);
+  }
+
+  // ── Particle Lifetime & Open-Water Spawning ───────────────────────────────
+
+  _randomOceanCell() {
+    let lat, lon, tries = 0;
+    do {
+      lat = LAT_MIN + Math.random() * (LAT_MAX - LAT_MIN);
+      lon = LON_MIN + Math.random() * (LON_MAX - LON_MIN);
+      tries++;
+    } while (this._isLand(lat, lon) && tries < 30);
+    return { lat, lon };
+  }
+
+  _spawnParticle(i, staggerAge = true) {
+    const { lat, lon } = this._randomOceanCell();
+    const maxAge       = MIN_AGE + Math.random() * (MAX_AGE - MIN_AGE);
+
+    this.pData[i] = {
+      lat, lon,
+      maxAge,
+      age: staggerAge ? Math.random() * maxAge : 0.0,
+    };
+
+    this._updateInstanceTransform(i, 1.0);
+  }
+
+  /**
+   * Updates matrix and color for particle instance i.
+   */
+  _updateInstanceTransform(i, lifeAlpha = 1.0) {
+    const p = this.pData[i];
+    const { u, v, speed } = this._sampleVelocity(p.lat, p.lon);
+
+    const pos = latLonDepthToXYZ(p.lat, p.lon, this.activeDepth, { verticalExaggeration: this.exaggeration });
+
+    // Elevate Z by Z_NUDGE (+0.15) to float cleanly right above scalar volume slice plane
+    _tempPos.set(pos.x, pos.y, pos.z + Z_NUDGE);
+
+    // Direction angle on XY plane: rotation around Z axis
+    const rotZ = Math.atan2(v, u) - Math.PI / 2;
+    _euler.set(0, 0, rotZ, 'XYZ');
+    _tempRot.setFromEuler(_euler);
+
+    // Sleek scale proportional to velocity magnitude
+    const lenScale = 0.5 + speed * 0.7;
+    _tempScale.set(1.0, lenScale, 1.0);
+
+    // Front-facing colored mesh matrix
+    _tempMatrix.compose(_tempPos, _tempRot, _tempScale);
+    this.instancedMesh.setMatrixAt(i, _tempMatrix);
+
+    // Set fill color and fade alpha
+    const col = this._speedToColor(speed);
+    _tempColor.copy(col).multiplyScalar(lifeAlpha);
+    this.instancedMesh.setColorAt(i, _tempColor);
+  }
+
+  // ── Init InstancedMesh Streamlines ────────────────────────────────────────
+
+  _initStreamlines() {
+    // Sleek 3D Tapered Stream Capsule: top radius 0.045 (head), bottom radius 0.01 (tail), height 0.6, 8 radial segments
+    const geom = new THREE.CylinderGeometry(0.045, 0.01, 0.6, 8);
+
+    const mat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0.90,
+      depthWrite: true,
+    });
+
+    this.instancedMesh = new THREE.InstancedMesh(geom, mat, PARTICLE_COUNT);
+
+    this.instancedMesh.renderOrder = 20;
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      this._spawnParticle(i, true);
+    }
+
+    if (this.instancedMesh.instanceMatrix) this.instancedMesh.instanceMatrix.needsUpdate = true;
+    if (this.instancedMesh.instanceColor)  this.instancedMesh.instanceColor.needsUpdate  = true;
+    this.group.add(this.instancedMesh);
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────
 
   updateForDate(dateStr, activeDepth = null) {
     if (dateStr) this.currentDate = dateStr;
     if (activeDepth !== null && activeDepth !== undefined) {
       this.activeDepth = Number(activeDepth);
     }
-    if (!this.arrowMesh || !this.vectorData) return;
-
-    const dummy = new THREE.Object3D();
-    const colors = this.arrowMesh.instanceColor ? this.arrowMesh.instanceColor.array : null;
-
-    this.vectorData.forEach((vec, i) => {
-      const calc = this._computeCurrentAt(vec.lat, vec.lon, vec.depth, this.currentDate);
-      vec.u = calc.u;
-      vec.v = calc.v;
-      vec.speed = calc.speed;
-
-      const pos = latLonDepthToXYZ(vec.lat, vec.lon, vec.depth, { verticalExaggeration: this.exaggeration });
-      dummy.position.set(pos.x, pos.y, pos.z);
-
-      const angle = Math.atan2(vec.v, vec.u);
-      dummy.rotation.set(0, 0, angle - Math.PI / 2);
-
-      const isSliceDepth = this.activeDepth !== null && Math.abs(vec.depth - this.activeDepth) <= 50;
-      const depthBoost = isSliceDepth ? 1.3 : 0.9;
-      const scale = Math.min(2.2, Math.max(0.5, vec.speed * 1.5 * depthBoost));
-      dummy.scale.set(scale, scale, scale);
-      dummy.updateMatrix();
-
-      this.arrowMesh.setMatrixAt(i, dummy.matrix);
-
-      if (colors) {
-        const t = Math.min(1.0, Math.max(0.0, (vec.speed - 0.1) / 0.9));
-        const col = new THREE.Color();
-        if (t < 0.33) {
-          col.setRGB(0.0, 0.85 + t * 0.45, 0.9);
-        } else if (t < 0.66) {
-          col.setRGB((t - 0.33) * 3.0, 0.95, 0.4);
-        } else {
-          col.setRGB(1.0, 0.8 - (t - 0.66) * 1.8, 0.2);
-        }
-        if (isSliceDepth) {
-          col.multiplyScalar(1.25);
-        }
-        colors[i * 3] = col.r;
-        colors[i * 3 + 1] = col.g;
-        colors[i * 3 + 2] = col.b;
-      }
-    });
-
-    this.arrowMesh.instanceMatrix.needsUpdate = true;
-    if (this.arrowMesh.instanceColor) this.arrowMesh.instanceColor.needsUpdate = true;
-
-    if (this.pMeta && this.vectorData.length > 0) {
-      for (let i = 0; i < this.pMeta.length; i++) {
-        const parent = this.vectorData[i % this.vectorData.length];
-        this.pMeta[i].vx = parent.u * 0.8;
-        this.pMeta[i].vy = parent.v * 0.8;
-        this.pMeta[i].speed = parent.speed * 0.02 + 0.005;
-      }
+    this._buildVelocityGrid();
+    for (let i = 0; i < PARTICLE_COUNT; i++) this._spawnParticle(i, true);
+    if (this.instancedMesh) {
+      this.instancedMesh.instanceMatrix.needsUpdate = true;
+      if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true;
     }
   }
 
   setExaggeration(factor) {
     this.exaggeration = factor;
-    if (!this.arrowMesh || !this.vectorData) return;
-    this.updateForDate(this.currentDate, this.activeDepth);
+    this._buildVelocityGrid();
+    for (let i = 0; i < PARTICLE_COUNT; i++) this._spawnParticle(i, true);
+    if (this.instancedMesh) {
+      this.instancedMesh.instanceMatrix.needsUpdate = true;
+      if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true;
+    }
   }
 
   setVisible(visible) {
-    this.visible = Boolean(visible);
+    this.visible       = Boolean(visible);
     this.group.visible = this.visible;
   }
 
-  update(time) {
-    if (!this.visible || !this.flowParticles) return;
+  /**
+   * Per-frame advection — called from main.js render loop ONLY when visible.
+   * @param {number} timeMs performance.now() timestamp
+   */
+  update(timeMs) {
+    if (!this.visible || !this.instancedMesh) return;
 
-    const positions = this.flowParticles.geometry.attributes.position.array;
-    for (let i = 0; i < this.pMeta.length; i++) {
-      const p = this.pMeta[i];
-      p.progress += p.speed;
-      if (p.progress > 1.0) p.progress = 0.0;
+    const dt = this._lastTimeMs !== null
+      ? Math.min((timeMs - this._lastTimeMs) / 1000, MAX_DT)
+      : 0.016;
+    this._lastTimeMs = timeMs;
 
-      positions[i * 3] = p.baseX + p.vx * p.progress * 4.0;
-      positions[i * 3 + 1] = p.baseY + p.vy * p.progress * 4.0;
-      positions[i * 3 + 2] = p.baseZ;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const p = this.pData[i];
+      p.age += dt;
+
+      // Respawn on lifetime expiry, domain exit, or land collision
+      if (p.age > p.maxAge ||
+          p.lat < LAT_MIN || p.lat > LAT_MAX ||
+          p.lon < LON_MIN || p.lon > LON_MAX ||
+          this._isLand(p.lat, p.lon)) {
+        this._spawnParticle(i, false);
+        continue;
+      }
+
+      // Advect position using bilinear-sampled velocity
+      const { u, v } = this._sampleVelocity(p.lat, p.lon);
+      p.lon += u * dt * ADVECT_SCALE;
+      p.lat += v * dt * ADVECT_SCALE;
+
+      // Smooth fade near birth (0-15%) and death (85-100%)
+      const lifeFrac = p.age / p.maxAge;
+      let lifeAlpha = 1.0;
+      if (lifeFrac < 0.15) {
+        lifeAlpha = lifeFrac / 0.15;
+      } else if (lifeFrac > 0.85) {
+        lifeAlpha = (1.0 - lifeFrac) / 0.15;
+      }
+
+      this._updateInstanceTransform(i, lifeAlpha);
     }
-    this.flowParticles.geometry.attributes.position.needsUpdate = true;
+
+    this.instancedMesh.instanceMatrix.needsUpdate = true;
+    if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true;
   }
 
   dispose() {
-    if (this.arrowMesh) {
-      this.arrowMesh.geometry.dispose();
-      this.arrowMesh.material.dispose();
-    }
-    if (this.flowParticles) {
-      this.flowParticles.geometry.dispose();
-      this.flowParticles.material.dispose();
+    if (this.instancedMesh) {
+      this.instancedMesh.geometry.dispose();
+      this.instancedMesh.material.dispose();
+      this.group.remove(this.instancedMesh);
+      this.instancedMesh = null;
     }
     this.scene.remove(this.group);
   }
 }
+
+

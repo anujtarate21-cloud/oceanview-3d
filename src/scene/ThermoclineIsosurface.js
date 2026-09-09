@@ -214,6 +214,19 @@ export class ThermoclineIsosurface {
     }
   }
 
+  getThermoclineSummary() {
+    const month = this.currentDate ? parseInt(this.currentDate.split('-')[1], 10) : 3;
+    if (month >= 6 && month <= 9) {
+      return { meanDepth: 75, range: '50–120m', note: 'Summer Upwelling' };
+    } else if (month === 12 || month <= 2) {
+      return { meanDepth: 165, range: '120–220m', note: 'Winter BoB Deepening' };
+    } else if (month >= 3 && month <= 5) {
+      return { meanDepth: 145, range: '80–180m', note: 'Spring Transition' };
+    } else {
+      return { meanDepth: 135, range: '70–190m', note: 'Autumn Mean' };
+    }
+  }
+
   update(time) {}
 
   dispose() {

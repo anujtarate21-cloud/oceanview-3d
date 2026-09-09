@@ -25,8 +25,15 @@ export class WaterColumnCage {
     this.maxLon = 95;
     this.maxDepth = 5000;
     this.depthLevels = [0, 200, 1000, 2000, 5000];
+    this.currentExaggeration = 50;
+
+    this.labelsGroup = new THREE.Group();
+    this.labelsGroup.name = 'WaterColumnCageLabels';
+    this.scene.add(this.labelsGroup);
+    this.labelSprites = [];
 
     this._buildCage();
+    this._buildDepthLabels();
   }
 
   _buildCage() {
@@ -143,6 +150,72 @@ export class WaterColumnCage {
     this.group.add(new THREE.LineSegments(floorGridGeo, this.floorMat));
   }
 
+  _buildDepthLabels(isLight = false) {
+    // Dispose previous sprites if any
+    for (const item of this.labelSprites) {
+      if (item.sprite) {
+        this.labelsGroup.remove(item.sprite);
+        if (item.sprite.material?.map) item.sprite.material.map.dispose();
+        if (item.sprite.material) item.sprite.material.dispose();
+      }
+    }
+    this.labelSprites = [];
+
+    // Anchor labels on the Southwest vertical depth pillar (60°E, 0°N)
+    const cSW = latLonDepthToXYZ(this.minLat, this.minLon, 0);
+    const depthLevels = [
+      { depth: 0, text: '0m · Surface' },
+      { depth: 200, text: '200m · Thermocline' },
+      { depth: 500, text: '500m · Mesopelagic' },
+      { depth: 1000, text: '1000m · Argo Drift' },
+      { depth: 2000, text: '2000m · Deep CTD' },
+      { depth: 5000, text: '5000m · Seafloor' },
+    ];
+
+    for (const lvl of depthLevels) {
+      const sprite = this._createDepthLabelSprite(lvl.text, isLight);
+      const z = getDepthZ(lvl.depth, this.currentExaggeration);
+      sprite.position.set(cSW.x - 3.4, cSW.y, z);
+      this.labelsGroup.add(sprite);
+      this.labelSprites.push({ sprite, depth: lvl.depth });
+    }
+  }
+
+  _createDepthLabelSprite(text, isLight = false) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+
+    // High-contrast semi-translucent pill
+    ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(11, 25, 44, 0.92)';
+    ctx.strokeStyle = isLight ? '#005c8a' : '#00d4aa';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 292, 56, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Text with crisp contrast
+    ctx.font = 'bold 24px "JetBrains Mono", monospace, sans-serif';
+    ctx.fillStyle = isLight ? '#002b49' : '#f1f5f9';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 150, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+    });
+    const sprite = new THREE.Sprite(material);
+    sprite.renderOrder = 999;
+    sprite.scale.set(4.2, 0.95, 1.0);
+    return sprite;
+  }
+
   /**
    * Updates cage, depth ruler and grid colors based on active theme & light/dark mode.
    * @param {number|string} primaryHex Accent/surface frame color
@@ -176,22 +249,46 @@ export class WaterColumnCage {
       this.floorMat.opacity = isLight ? 0.85 : 0.60;
       this.floorMat.needsUpdate = true;
     }
+
+    // Refresh depth labels for theme
+    this._buildDepthLabels(isLight);
   }
 
   /**
-   * Scales the water column cage vertically in real-time.
+   * Scales the water column cage vertically in real-time and updates depth sprites.
    * @param {number} exaggeration e.g. 50 (1x scale), 100 (2x scale), 200 (4x scale)
    */
   setExaggeration(exaggeration) {
-    const factor = Number(exaggeration) / 50;
+    this.currentExaggeration = Number(exaggeration) || 50;
+    const factor = this.currentExaggeration / 50;
     this.group.scale.set(1, 1, factor);
+
+    // Update real-world 3D depth label positions along Z
+    const cSW = latLonDepthToXYZ(this.minLat, this.minLon, 0);
+    for (const item of this.labelSprites) {
+      const z = getDepthZ(item.depth, this.currentExaggeration);
+      item.sprite.position.set(cSW.x - 3.4, cSW.y, z);
+    }
   }
 
   setVisible(visible) {
     this.group.visible = visible;
+    if (this.labelsGroup) this.labelsGroup.visible = visible;
   }
 
   dispose() {
+    for (const item of this.labelSprites) {
+      if (item.sprite) {
+        if (item.sprite.material?.map) item.sprite.material.map.dispose();
+        if (item.sprite.material) item.sprite.material.dispose();
+      }
+    }
+    this.labelSprites = [];
+    if (this.labelsGroup) {
+      this.labelsGroup.clear();
+      this.scene.remove(this.labelsGroup);
+    }
+
     this.group.traverse((obj) => {
       if (obj.geometry) obj.geometry.dispose();
       if (obj.material) obj.material.dispose();

@@ -211,6 +211,7 @@ async function bootstrap() {
     await argoMarkers.load(nextPositions);
     if (token !== argoLoadToken) return;
     argoMarkers.setVisible(controlPanel.els.toggleArgo?.checked ?? true);
+    syncOverlayMenuUI();
   }
 
   const geojson = await loadCoastline();
@@ -271,6 +272,68 @@ async function bootstrap() {
     }
   }
 
+  function syncOverlayMenuUI() {
+    // 1. Sync row active highlights from checkboxes
+    const rows = document.querySelectorAll('.overlay-row');
+    rows.forEach((row) => {
+      const chk = row.querySelector('.overlay-checkbox');
+      if (chk) row.classList.toggle('active', chk.checked);
+    });
+
+    // 2. Sync pill count
+    const chks = document.querySelectorAll('.overlay-checkbox');
+    const pill = document.getElementById('factor-overlays-pill');
+    if (pill && chks.length) {
+      const checked = Array.from(chks).filter((c) => c.checked).length;
+      pill.textContent = `${checked}/${chks.length} Active`;
+    }
+
+    // 3. Dynamic IRL depth badges
+    // Coastline: constant surface
+    const bCoast = document.getElementById('badge-depth-coastline');
+    if (bCoast) bCoast.textContent = 'Surface · 0m';
+
+    // Argo: dynamic operational depth range for loaded floats
+    const bArgo = document.getElementById('badge-depth-argo');
+    if (bArgo) {
+      if (argoMarkers && argoMarkers.getDepthExtents) {
+        const ext = argoMarkers.getDepthExtents();
+        if (ext.count > 0) {
+          bArgo.textContent = `${ext.minDepth}m – ${ext.maxDepth}m (${ext.count})`;
+        } else {
+          bArgo.textContent = '0 – 2000m';
+        }
+      } else {
+        bArgo.textContent = '0 – 2000m';
+      }
+    }
+
+    // Currents: dynamic with active depth slice
+    const bCurr = document.getElementById('badge-depth-currents');
+    if (bCurr) {
+      if (state.depth !== null && state.depth !== undefined && state.depth <= 500) {
+        bCurr.textContent = `0–500m · ${state.depth}m Active`;
+      } else {
+        bCurr.textContent = '0 – 500m Column';
+      }
+    }
+
+    // Thermocline 20°C Isosurface: seasonal dynamic upwelling depth
+    const bIso = document.getElementById('badge-depth-isosurface');
+    if (bIso) {
+      if (thermoclineIsosurface && thermoclineIsosurface.getThermoclineSummary) {
+        const summ = thermoclineIsosurface.getThermoclineSummary();
+        bIso.textContent = `~${summ.meanDepth}m (${summ.note})`;
+      } else {
+        bIso.textContent = '~150m (50–220m)';
+      }
+    }
+
+    // Glider: mission profile
+    const bGlid = document.getElementById('badge-depth-gliders');
+    if (bGlid) bGlid.textContent = '0 – 1000m Dive';
+  }
+
   let _applyingDate = false;
 
   async function applyDate(dateStr) {
@@ -326,6 +389,9 @@ async function bootstrap() {
       // 8. Update status strip and active slice readout
       updateSliceStatus();
 
+      // 9. Sync Observational Overlays menu row states and dynamic depth badges
+      syncOverlayMenuUI();
+
     } finally {
       _applyingDate = false;
     }
@@ -365,6 +431,7 @@ async function bootstrap() {
   if (gliderTracks.updateForDate) gliderTracks.updateForDate(state.date);
   if (aiAssistant.setDate) aiAssistant.setDate(state.date);
   updateSliceStatus();
+  syncOverlayMenuUI();
 
   // Hide loading screen once ready
   const loadingScreen = document.getElementById('loading-screen');
@@ -422,6 +489,7 @@ async function bootstrap() {
       currentVectors.updateForDate(state.date, state.depth);
     }
     updateSliceStatus();
+    syncOverlayMenuUI();
     debouncedRefreshVolume();
   });
 
@@ -475,7 +543,18 @@ async function bootstrap() {
     if (layer === 'currents') currentVectors.setVisible(visible);
     if (layer === 'isosurface') thermoclineIsosurface.setVisible(visible);
     if (layer === 'gliders') gliderTracks.setVisible(visible);
+    syncOverlayMenuUI();
   });
+
+  // 3D Currents mode dropdown handler (Animated Flow Lines / Off)
+  document.addEventListener('currents-mode-change', (e) => {
+    const mode = e.detail.mode; // 'flow' | 'off'
+    currentVectors.setVisible(mode === 'flow');
+    syncOverlayMenuUI();
+  });
+
+  // Initial 3D Currents state set to Recommended flow lines mode
+  currentVectors.setVisible(true);
 
   document.addEventListener('start-outreach-tour', () => {
     outreachMode.start();

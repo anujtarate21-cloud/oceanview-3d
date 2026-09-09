@@ -34,6 +34,7 @@ export class ControlPanel {
       timeSlider: document.getElementById('time-slider'),
       timeReadout: document.getElementById('time-readout'),
       playBtn: document.getElementById('play-btn'),
+      currentsMode: document.getElementById('currents-mode-select'),
       toggleCoastline: document.getElementById('toggle-coastline'),
       toggleArgo: document.getElementById('toggle-argo'),
       sidebar: document.getElementById('sidebar'),
@@ -124,6 +125,15 @@ export class ControlPanel {
       const shortVar = labels[raw] || raw;
       this.els.factorOceanPill.textContent = `${depth}m · ${shortVar}`;
     }
+  }
+
+  _syncOverlaysPill() {
+    const pill = document.getElementById('factor-overlays-pill');
+    if (!pill) return;
+    const chks = document.querySelectorAll('.overlay-checkbox');
+    if (!chks.length) return;
+    const checked = Array.from(chks).filter((c) => c.checked).length;
+    pill.textContent = `${checked}/${chks.length} Active`;
   }
 
   _setVariable(variable) {
@@ -251,22 +261,36 @@ export class ControlPanel {
     // Play/pause
     this.els.playBtn.addEventListener('click', () => this._togglePlay());
 
-    // Layer toggles
-    this.els.toggleCoastline?.addEventListener('change', (e) => {
-      this._emit('layer-toggle', { layer: 'coastline', visible: e.target.checked });
+    // 3D Currents mode dropdown (Animated Flow Lines / Off)
+    if (this.els.currentsMode) {
+      this.els.currentsMode.addEventListener('change', (e) => {
+        const mode = e.target.value; // 'flow' | 'off'
+        this._emit('currents-mode-change', { mode });
+      });
+    }
+
+    // Layer toggles with space-optimized row active feedback
+    const overlayToggles = [
+      { id: 'toggle-coastline', layer: 'coastline' },
+      { id: 'toggle-argo', layer: 'argo' },
+      { id: 'toggle-currents', layer: 'currents' },
+      { id: 'toggle-isosurface', layer: 'isosurface' },
+      { id: 'toggle-gliders', layer: 'gliders' },
+    ];
+
+    overlayToggles.forEach(({ id, layer }) => {
+      const chk = document.getElementById(id);
+      if (chk) {
+        chk.addEventListener('change', (e) => {
+          const row = chk.closest('.overlay-row');
+          if (row) row.classList.toggle('active', chk.checked);
+          this._syncOverlaysPill();
+          this._emit('layer-toggle', { layer, visible: e.target.checked });
+        });
+      }
     });
-    this.els.toggleArgo?.addEventListener('change', (e) => {
-      this._emit('layer-toggle', { layer: 'argo', visible: e.target.checked });
-    });
-    document.getElementById('toggle-currents')?.addEventListener('change', (e) => {
-      this._emit('layer-toggle', { layer: 'currents', visible: e.target.checked });
-    });
-    document.getElementById('toggle-isosurface')?.addEventListener('change', (e) => {
-      this._emit('layer-toggle', { layer: 'isosurface', visible: e.target.checked });
-    });
-    document.getElementById('toggle-gliders')?.addEventListener('change', (e) => {
-      this._emit('layer-toggle', { layer: 'gliders', visible: e.target.checked });
-    });
+    this._syncOverlaysPill();
+
     document.getElementById('start-outreach-btn')?.addEventListener('click', () => {
       this._emit('start-outreach-tour', {});
     });
@@ -276,12 +300,41 @@ export class ControlPanel {
       this.els.sidebar.classList.toggle('collapsed');
     });
 
-    // Outreach toggle
+    // Accordion Expand / Collapse All Toggle
+    const accordionToggleBtn = document.getElementById('sidebar-accordion-toggle-btn');
+    const getFactors = () => Array.from(this.els.sidebar?.querySelectorAll('.factor-group:not([hidden])') || []);
+
+    const updateAccordionToggleIcon = () => {
+      if (!accordionToggleBtn) return;
+      const factors = getFactors();
+      const anyOpen = factors.some((f) => f.open);
+      accordionToggleBtn.textContent = anyOpen ? '⊟' : '⊞';
+      accordionToggleBtn.title = anyOpen ? 'Collapse All Sections (Shift + A)' : 'Expand All Sections (Shift + A)';
+    };
+
+    accordionToggleBtn?.addEventListener('click', () => {
+      const factors = getFactors();
+      const anyOpen = factors.some((f) => f.open);
+      factors.forEach((f) => { f.open = !anyOpen; });
+      updateAccordionToggleIcon();
+    });
+
+    this.els.sidebar?.querySelectorAll('.factor-group').forEach((f) => {
+      f.addEventListener('toggle', () => updateAccordionToggleIcon());
+    });
+
+    // Outreach toggle — outreach-banner is now a <details> element so use hidden attribute
     this.els.outreachBtn?.addEventListener('click', () => {
       document.body.classList.toggle('outreach-mode');
       const simplified = document.body.classList.contains('outreach-mode');
       this.els.sidebar.classList.toggle('outreach-simplified', simplified);
-      this.els.outreachBanner?.classList.toggle('hidden', !simplified);
+      if (this.els.outreachBanner) {
+        this.els.outreachBanner.hidden = !simplified;
+        if (simplified) {
+          this.els.outreachBanner.open = true;
+        }
+      }
+      updateAccordionToggleIcon();
       this._emit('outreach-toggle', { simplified });
     });
 
@@ -342,6 +395,8 @@ export class ControlPanel {
         this.els.outreachBtn?.click();
       } else if (e.key === 'h' || e.key === 'H') {
         this.els.toggleSidebarBtn?.click();
+      } else if (e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        document.getElementById('sidebar-accordion-toggle-btn')?.click();
       } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
         this.els.shortcutsModal?.classList.toggle('hidden');
       } else if (e.key === 'Escape') {

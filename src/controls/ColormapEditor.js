@@ -38,16 +38,16 @@ export class ColormapEditor {
     const colormap = COLORMAPS[this.currentColormap] || viridis;
     if (!this.canvas || !this.ctx) return;
 
-    const width = this.canvas.width || 24;
-    const height = this.canvas.height || 160;
+    const width = this.canvas.width || 260;
+    const height = this.canvas.height || 12;
     const imageData = this.ctx.createImageData(width, height);
 
-    // Row 0 = top = max value, so we paint the ramp reversed top-to-bottom.
-    for (let y = 0; y < height; y++) {
-      const t = 1 - y / (height - 1);
+    // Horizontal color ramp from left (min value) to right (max value)
+    for (let x = 0; x < width; x++) {
+      const t = width > 1 ? x / (width - 1) : 0;
       const idx = Math.floor(t * (colormap.length - 1));
       const [r, g, b] = colormap[idx] || [128, 128, 128];
-      for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
         const p = (y * width + x) * 4;
         imageData.data[p] = r;
         imageData.data[p + 1] = g;
@@ -58,8 +58,8 @@ export class ColormapEditor {
     this.ctx.putImageData(imageData, 0, 0);
 
     const fmt = (v) => (v !== undefined && v !== null && !isNaN(v)) ? `${Number(v).toFixed(1)}${this.currentUnits}` : '--';
-    if (this.maxLabel) this.maxLabel.textContent = fmt(this.lastMax);
     if (this.minLabel) this.minLabel.textContent = fmt(this.lastMin);
     if (this.midLabel) this.midLabel.textContent = fmt((this.lastMin + this.lastMax) / 2);
+    if (this.maxLabel) this.maxLabel.textContent = fmt(this.lastMax);
   }
 }

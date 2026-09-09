@@ -19,24 +19,10 @@
 
 export const THEMES = [
   {
-    id: 'default-dark',
-    name: 'Dark Abyss',
-    icon: '🌌',
-    description: 'Deep ocean dark theme with glowing cyan and bioluminescent telemetry',
-    dark: {
-      bg3d: 0x0a0a2e,
-      fog: 0x0a0a2e,
-    },
-    light: {
-      bg3d: 0xdbeafe,
-      fog: 0xdbeafe,
-    }
-  },
-  {
     id: 'standard-marine-light',
-    name: 'Standard Marine Light',
+    name: 'INCOIS Official (Govt Light)',
     icon: '🏛️',
-    description: 'Crisp Ocean Navy (#0A2540) on White, Soft Sky Tint panels & Government Teal (#008080)',
+    description: 'Official Ministry of Earth Sciences & INCOIS government light standard with high contrast and precision slate borders',
     dark: {
       bg3d: 0x061426,
       fog: 0x061426,
@@ -47,10 +33,38 @@ export const THEMES = [
     }
   },
   {
+    id: 'default-dark',
+    name: 'INCOIS Mission Slate (Dark)',
+    icon: '🌐',
+    description: 'Mission-grade deep oceanic slate navy with cobalt precision accents and zero cyber-glow distortion',
+    dark: {
+      bg3d: 0x071322,
+      fog: 0x071322,
+    },
+    light: {
+      bg3d: 0xdbeafe,
+      fog: 0xdbeafe,
+    }
+  },
+  {
+    id: 'enterprise-hydro',
+    name: 'Hydrodynamic Operations (Azure)',
+    icon: '💼',
+    description: 'Clean enterprise hydrodynamic analytics suite with deep azure telemetry',
+    dark: {
+      bg3d: 0x0a192f,
+      fog: 0x0a192f,
+    },
+    light: {
+      bg3d: 0xf8fafc,
+      fog: 0xf8fafc,
+    }
+  },
+  {
     id: 'coastal-chart',
-    name: 'Coastal Chart',
+    name: 'Hydrographic Nautical Chart',
     icon: '🧭',
-    description: 'Parchment Light Blue (#EBF3F5), Marine Blue (#1E3A8A) vectors & Safety Amber (#D97706) float markers',
+    description: 'Admiralty parchment chart (#EBF3F5), marine blue vectors (#1E3A8A) & high-visibility float markers',
     dark: {
       bg3d: 0x07151e,
       fog: 0x07151e,
@@ -62,9 +76,9 @@ export const THEMES = [
   },
   {
     id: 'journal-paper',
-    name: 'Journal Paper',
+    name: 'Academic Research & Publications',
     icon: '📜',
-    description: 'Off-White Paper (#F8FAF8), Slate Blue (#334155), Academic Indigo (#4338CA) & Laboratory Emerald (#059669)',
+    description: 'Laboratory white paper (#F8FAF8), slate typography (#334155) & academic publication standard',
     dark: {
       bg3d: 0x0f172a,
       fog: 0x0f172a,
@@ -76,9 +90,9 @@ export const THEMES = [
   },
   {
     id: 'bright-horizon',
-    name: 'Bright Horizon',
+    name: 'Public Outreach & Education',
     icon: '🎓',
-    description: 'Bright Aqua (#0EA5E9), Cloud White (#FFFFFF), Sunlight Yellow (#F59E0B) & friendly rounded cards',
+    description: 'High-contrast bright mode for museum kiosks, classrooms, and public scientific exhibitions',
     dark: {
       bg3d: 0x040714,
       fog: 0x040714,
@@ -86,20 +100,6 @@ export const THEMES = [
     light: {
       bg3d: 0xf0f9ff,
       fog: 0xf0f9ff,
-    }
-  },
-  {
-    id: 'enterprise-hydro',
-    name: 'Enterprise Clean Hydro',
-    icon: '💼',
-    description: 'Cool Slate (#0F172A), Ice White (#F8FAFC), Deep Azure (#0284C7) & Fresh Mint (#10B981) modern analytics look',
-    dark: {
-      bg3d: 0x0a192f,
-      fog: 0x0a192f,
-    },
-    light: {
-      bg3d: 0xf8fafc,
-      fog: 0xf8fafc,
     }
   }
 ];
@@ -112,11 +112,11 @@ export class ThemeManager {
   constructor(options = {}) {
     this.oceanScene = options.oceanScene || null;
     
-    // Load persisted settings or default to Standard Marine Light / Default
+    // Load persisted settings or default to Standard Marine Light (Official Govt Mode)
     const savedTheme = localStorage.getItem('oceanview_theme');
     const savedMode = localStorage.getItem('oceanview_mode');
 
-    this.currentTheme = THEMES.some(t => t.id === savedTheme) ? savedTheme : 'default-dark';
+    this.currentTheme = THEMES.some(t => t.id === savedTheme) ? savedTheme : 'standard-marine-light';
     this.currentMode = savedMode ? (savedMode === 'light' ? 'light' : 'dark') : (this.currentTheme.includes('light') ? 'light' : 'dark');
 
     this.els = {
