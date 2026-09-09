@@ -728,6 +728,25 @@ export class AIChatAssistant {
       try {
         const groqResult = await this._queryGroq(prompt, currentState);
         if (groqResult && (groqResult.text_response || groqResult.actions?.length)) {
+          const pLower = prompt.toLowerCase();
+          const isReportReq = pLower.includes('report') || pLower.includes('summary') || pLower.includes('bulletin') || pLower.includes('hydrographic') || pLower.includes('what happened') || pLower.includes('ocean state');
+
+          if (isReportReq) {
+            if (!groqResult.report) {
+              const rep = this._parseReportDateAndMetrics(prompt, currentState, this.activeRole);
+              if (rep) {
+                groqResult.report = rep;
+              }
+            }
+            if (groqResult.report) {
+              groqResult.text_response = `**${groqResult.report.title}** generated. Full breakdown is open in the HUD overlay with download options.`;
+              if (groqResult.report.generatedDates && groqResult.report.generatedDates.length > 0) {
+                window.pipelineManager?.cacheBatchDates(groqResult.report.generatedDates);
+                window.pipelineManager?.requestDate(groqResult.report.generatedDates[0]);
+              }
+            }
+          }
+
           this.removeLoadingMessage(loadingId);
           this.appendMessage(
             'bot',
@@ -1874,6 +1893,14 @@ If the user asks for a report, bulletin, or summary, extract the exact requested
       student: 'Student Explorer', researcher: 'Researcher', general: 'General'
     };
     const roleBadgeLabel = roleLabels[role] || 'General';
+    const roleIcons = {
+      oceanographer: '🌊',
+      government: '🏛️',
+      student: '🎓',
+      researcher: '🔬',
+      general: '📊'
+    };
+    const roleBadgeIcon = roleIcons[role] || '📊';
 
     // Sync HUD role selector buttons
     document.querySelectorAll('.hud-role-btn').forEach((btn) => {
@@ -2218,7 +2245,7 @@ If the user asks for a report, bulletin, or summary, extract the exact requested
       const rep = this._parseReportDateAndMetrics(p, currentState, this.activeRole);
 
       // Auto-cache batch dates into timeline if a week/month or cache command was mentioned
-      if (rep.generatedDates && rep.generatedDates.length > 0 && (p.includes('add') || p.includes('cache') || p.includes('date') || isWeekly || p.includes('timeline') || p.includes('week'))) {
+      if (rep.generatedDates && rep.generatedDates.length > 0 && (p.includes('add') || p.includes('cache') || p.includes('date') || hasWeek || p.includes('timeline') || p.includes('week'))) {
         window.pipelineManager?.cacheBatchDates(rep.generatedDates);
         window.pipelineManager?.requestDate(rep.generatedDates[0]);
         appliedChips.push(`Cache → +${rep.generatedDates.length} Dates`);

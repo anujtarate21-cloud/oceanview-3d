@@ -27,7 +27,7 @@
   <header id="topbar">
     <div id="topbar-left">
       <div class="emblem-container">
-        <span class="brand-mark">◆</span>
+        <span class="brand-mark">🌊</span>
       </div>
       <div class="brand-text">
         <div class="govt-sub">Govt. of India &middot; Ministry of Earth Sciences (MoES)</div>
@@ -52,11 +52,11 @@
           <option value="bright-horizon">Public Outreach & Education</option>
         </select>
         <button id="mode-toggle-btn" class="icon-btn mode-btn" title="Toggle Light / Dark Mode (Shift + M)">
-          <span id="mode-icon">Theme</span>
+          <span id="mode-icon">🌙</span>
         </button>
       </div>
 
-      <button id="shortcuts-btn" class="icon-btn" title="Keyboard Shortcuts (?)">?</button>
+      <button id="shortcuts-btn" class="icon-btn" title="Keyboard Shortcuts (?)">⌨</button>
       <button id="outreach-toggle-btn" class="icon-btn" title="Public Outreach / Exhibition Mode (O)">◐</button>
       <button id="toggle-sidebar-btn" class="icon-btn" title="Toggle Controls (H)">☰</button>
     </div>
@@ -295,16 +295,24 @@
     </details>
   </aside>
 
-  <!-- Top-Left Floating Legend HUD (Clean Symbol Key) -->
+  <!-- Top-Left Floating Legend HUD (Clean Minimalist Symbol Key) -->
   <aside id="top-left-legend" class="glass-panel">
     <div class="legend-header">
       <span class="legend-title">Hydrographic Legend</span>
       <span id="legend-active-var-badge" class="badge">HYCOM 3D</span>
     </div>
-    <div id="legend-list">
-      <div class="legend-item"><span class="legend-dot argo"></span> Argo Float (In-situ Sounding)</div>
-      <div class="legend-item"><span class="legend-dot glider"></span> Autonomous Glider</div>
-      <div class="legend-item"><span class="legend-swatch land"></span> Land / Topographic Mask</div>
+    <div id="legend-list" class="legend-compact-grid">
+      <div class="legend-row">
+        <div class="legend-item"><span class="legend-dot argo"></span> Argo Float</div>
+        <div class="legend-item"><span class="legend-dot glider"></span> Glider</div>
+        <div class="legend-item"><span class="legend-swatch land"></span> Land</div>
+      </div>
+      <div id="legend-currents-group" class="legend-row legend-currents-row" style="display: none;">
+        <span class="legend-row-label">Currents:</span>
+        <div class="legend-item" title="Slow Current (&lt; 0.4 m/s)"><span class="legend-dot current-slow"></span> &lt;0.4 m/s</div>
+        <div class="legend-item" title="Moderate Current (0.4–0.7 m/s)"><span class="legend-dot current-mod"></span> 0.4–0.7</div>
+        <div class="legend-item" title="Fast Current (&gt; 0.7 m/s)"><span class="legend-dot current-fast"></span> &gt;0.7 m/s</div>
+      </div>
     </div>
   </aside>
 
@@ -313,21 +321,21 @@
   <div id="ai-assistant-container">
     <!-- Minimized Trigger Button -->
     <button id="ai-toggle-btn" class="ai-fab-btn" title="Toggle Ocean AI Assistant (Ctrl + Space)">
-      <span class="ai-btn-label">Ocean AI Assistant</span>
+      <span class="ai-btn-label">🤖 Ocean AI Assistant</span>
     </button>
 
     <!-- Floating Glassmorphic Chat Window -->
     <div id="ai-chat-window" class="glass-panel hidden">
       <div class="ai-chat-header">
         <div class="ai-header-info">
-          <span class="ai-avatar">AI</span>
+          <span class="ai-avatar">🤖</span>
           <div>
             <div class="ai-bot-title">OceanView Intelligence</div>
             <div class="ai-bot-status">INCOIS Model &bull; Argo Sounding &bull; Gemini</div>
           </div>
         </div>
         <div class="ai-header-actions">
-          <button id="ai-upload-btn" class="icon-btn small" title="Upload NetCDF / CSV / JSON Dataset">Upload</button>
+          <button id="ai-upload-btn" class="icon-btn small" title="Upload NetCDF / CSV / JSON Dataset">📁</button>
           <button id="ai-minimize-btn" class="icon-btn small" title="Minimize Chat (Esc)">✕</button>
         </div>
       </div>
@@ -362,7 +370,7 @@
           placeholder="Ask: 'Government report for 2023-03-21' or 'Show currents'..." 
           autocomplete="off" 
         />
-        <button type="button" id="ai-mic-btn" class="ai-mic-btn" title="Voice Command (Click to speak)">Voice</button>
+        <button type="button" id="ai-mic-btn" class="ai-mic-btn" title="Voice Command (Click to speak)">🎙️</button>
         <button type="submit" id="ai-send-btn" class="ai-send-btn" title="Send Query">➔</button>
       </form>
     </div>

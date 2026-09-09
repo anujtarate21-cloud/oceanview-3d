@@ -25,7 +25,7 @@
   <!-- Top title bar -->
   <header id="topbar">
     <div id="topbar-left">
-      <span class="brand-mark">◉</span>
+      <span class="brand-mark">🌊</span>
       <div class="brand-text">
         <span class="brand-title">OceanView 3D</span>
         <span class="brand-sub">INCOIS &middot; Ministry of Earth Sciences</span>
@@ -163,10 +163,18 @@
       <div class="section-label">Legend</div>
       <!-- Dynamic colourbar rendered by Legend.js -->
       <div id="legend-container" class="legend-colorbar-wrap"></div>
-      <div id="legend-list">
-        <div class="legend-item"><span class="legend-dot argo"></span> Argo Profiling Float (In-situ)</div>
-        <div class="legend-item"><span class="legend-dot glider"></span> Autonomous Glider</div>
-        <div class="legend-item"><span class="legend-swatch land"></span> Land / Topographic Mask</div>
+      <div id="legend-list" class="legend-compact-grid">
+        <div class="legend-row">
+          <div class="legend-item"><span class="legend-dot argo"></span> Argo Float</div>
+          <div class="legend-item"><span class="legend-dot glider"></span> Glider</div>
+          <div class="legend-item"><span class="legend-swatch land"></span> Land</div>
+        </div>
+        <div id="legend-currents-group" class="legend-row legend-currents-row" style="display: none;">
+          <span class="legend-row-label">Currents:</span>
+          <div class="legend-item" title="Slow Current (&lt; 0.4 m/s)"><span class="legend-dot current-slow"></span> &lt;0.4 m/s</div>
+          <div class="legend-item" title="Moderate Current (0.4–0.7 m/s)"><span class="legend-dot current-mod"></span> 0.4–0.7</div>
+          <div class="legend-item" title="Fast Current (&gt; 0.7 m/s)"><span class="legend-dot current-fast"></span> &gt;0.7 m/s</div>
+        </div>
       </div>
     </div>
   </aside>

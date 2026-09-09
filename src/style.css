@@ -1211,7 +1211,7 @@ input[type="range"]::-moz-range-track {
   position: fixed;
   top: 72px;
   left: 18px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: var(--bg-panel);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -1221,34 +1221,41 @@ input[type="range"]::-moz-range-track {
   z-index: 35;
   pointer-events: auto;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  min-width: 220px;
+  width: auto;
+  max-width: 340px;
 }
 .legend-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding-bottom: 7px;
-  margin-bottom: 7px;
+  padding-bottom: 5px;
+  margin-bottom: 5px;
   border-bottom: 1px solid var(--border-subtle);
 }
 .legend-title {
   font-family: var(--font-heading);
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--text);
 }
 .legend-section { margin-bottom: 4px; }
-#legend-list { display: flex; flex-direction: column; gap: 6px; }
-.legend-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 500; color: var(--text); }
-.legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+#legend-list { display: flex; flex-direction: column; gap: 4px; }
+.legend-compact-grid { display: flex; flex-direction: column; gap: 4px; }
+.legend-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 10.5px; }
+.legend-row-label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.4px; }
+.legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 500; color: var(--text); white-space: nowrap; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 /* Pinned to #ffa500 — matches ArgoMarkers.js MeshBasicMaterial color: 0xffa500 exactly */
 .legend-dot.argo { background: #ffa500; box-shadow: 0 0 5px rgba(255, 165, 0, 0.7); }
 /* Glider is blue cone in GliderTracks.js */
 .legend-dot.glider { background: #0284c7; box-shadow: 0 0 5px rgba(2, 132, 199, 0.7); border-radius: 0; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-.legend-swatch { width: 13px; height: 8px; border-radius: 2px; display: inline-block; flex-shrink: 0; background: var(--land); border: 1px solid var(--border-subtle); }
+.legend-dot.current-slow { background: #007C91; box-shadow: 0 0 5px rgba(0, 124, 145, 0.8); width: 10px; height: 4px; border-radius: 2px; }
+.legend-dot.current-mod { background: #FF9800; box-shadow: 0 0 5px rgba(255, 152, 0, 0.8); width: 10px; height: 4px; border-radius: 2px; }
+.legend-dot.current-fast { background: #FF000D; box-shadow: 0 0 5px rgba(255, 0, 13, 0.8); width: 10px; height: 4px; border-radius: 2px; }
+.legend-swatch { width: 11px; height: 7px; border-radius: 2px; display: inline-block; flex-shrink: 0; background: var(--land); border: 1px solid var(--border-subtle); }
 
 /* ---------- Argo tooltip ---------- */
 #argo-tooltip {
@@ -1885,10 +1892,11 @@ kbd {
 }
 #top-left-legend {
   position: fixed;
-  top: 76px;
-  left: 20px;
-  width: 260px;
-  padding: 14px 14px 12px;
+  top: 72px;
+  left: 18px;
+  width: auto;
+  max-width: 360px;
+  padding: 8px 12px;
   background: var(--bg-panel);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -1902,15 +1910,16 @@ kbd {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--border-subtle);
+  gap: 8px;
 }
 #top-left-legend .legend-title {
   font-family: var(--font-heading);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--text-dim);
 }

@@ -332,6 +332,13 @@ async function bootstrap() {
     // Glider: mission profile
     const bGlid = document.getElementById('badge-depth-gliders');
     if (bGlid) bGlid.textContent = '0 – 1000m Dive';
+
+    // 4. Dynamic Legend Current Vector key visibility
+    const legendCurrentsRow = document.getElementById('legend-currents-group');
+    if (legendCurrentsRow) {
+      const isCurrentsActive = Boolean(currentVectors && currentVectors.visible);
+      legendCurrentsRow.style.display = isCurrentsActive ? 'flex' : 'none';
+    }
   }
 
   let _applyingDate = false;
@@ -553,8 +560,8 @@ async function bootstrap() {
     syncOverlayMenuUI();
   });
 
-  // Initial 3D Currents state set to Recommended flow lines mode
-  currentVectors.setVisible(true);
+  // Initial 3D Currents state set to off by default
+  currentVectors.setVisible(false);
 
   document.addEventListener('start-outreach-tour', () => {
     outreachMode.start();
