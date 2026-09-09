@@ -414,7 +414,7 @@ oceanview-3d/
 - 3D depth ruler billboard labels (0m, 200m, 500m, 1000m, 2000m, 5000m) with click-to-select
 - Selected label gets neon cyan glow halo + `[SELECTED]` text + scale pop
 - `ArgoInteraction`: Dual-mode hit testing (3D raycast + screen-space projection), drag-tolerant clicks
-- `ArgoMarkers`: InstancedMesh gold spheres with geometric land-coordinate filtering
+- `ArgoMarkers`: InstancedMesh orange spheres positioned at realistic operating depths (5–25m transmission, 1000m drift parking, 2000m profiling, 20–980m gliders) with dynamic vertical exaggeration scaling & geometric land-filtering
 - `CoastlineLayer`: GeoJSON → Three.js LineSegments
 - `CurrentVectors`: 3D arrows showing u/v current direction and magnitude per depth
 - `ThermoclineIsosurface`: 20°C isosurface rendered as translucent mesh
@@ -559,7 +559,8 @@ git log --oneline -10
 - **Pre-work allowed:** Yes
 - **PPT:** Official 6-slide template, submit as PDF
 - **Key fact:** INCOIS adopts SIH solutions (AutoFiS, SIH 2022)
-- **Differentiator:** Zero web-based 3D ocean viz tools exist globally
+- **Core Differentiator:** India's first browser-native **sub-surface volumetric 3D** water-column platform.
+- **INCOIS Digital Ocean Positioning:** Digital Ocean (`do.incois.gov.in`) is an operational planetary surface GIS portal (CesiumJS/GeoServer); OceanView 3D is the specialized sub-surface volumetric engine (Three.js/WebGL) providing 60 FPS water-column slicing, 1x–200x vertical exaggeration, and true 3D Argo float depth positioning.
 
 ---
 
