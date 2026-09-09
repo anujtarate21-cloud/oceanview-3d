@@ -4,7 +4,7 @@
  */
 
 // ── Camera ─────────────────────────────────────────────────────────────────
-export const CAMERA_INITIAL_POSITION = { x: 0, y: -60, z: 60 };
+export const CAMERA_INITIAL_POSITION = { x: -35, y: -75, z: 55 };
 export const CAMERA_FOV      = 45;
 export const CAMERA_NEAR     = 0.1;
 export const CAMERA_FAR      = 2000;
@@ -18,7 +18,7 @@ export const LON_CENTER = 77.5;
 export const LAT_CENTER = 12.5;
 
 // ── Vertical exaggeration ───────────────────────────────────────────────────
-export const DEFAULT_VERT_EXAG = 50;
+export const DEFAULT_VERT_EXAG = 75;
 export const MIN_VERT_EXAG     = 1;
 export const MAX_VERT_EXAG     = 200;
 

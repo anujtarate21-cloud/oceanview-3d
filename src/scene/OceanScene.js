@@ -25,7 +25,7 @@ export class OceanScene {
     );
     // Z is the vertical water-column axis (+Z sky, -Z ocean depths)
     this.camera.up.set(0, 0, 1);
-    this.camera.position.set(0, -50, 45);
+    this.camera.position.set(-35, -75, 55);
 
     // 3. Renderer setup — no antialias (huge perf gain), cap pixelRatio at 1
     this.renderer = new THREE.WebGLRenderer({
@@ -45,7 +45,7 @@ export class OceanScene {
     this.controls.maxPolarAngle = Math.PI / 2 + 0.1;
     this.controls.minDistance = 5;
     this.controls.maxDistance = 500;
-    this.controls.target.set(0, 0, -4);
+    this.controls.target.set(0, 0, -8);
 
     // 5. Lighting setup
     this.ambientLight = new THREE.AmbientLight(0xffffff, 0.8);

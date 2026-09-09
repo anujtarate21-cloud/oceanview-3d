@@ -42,8 +42,14 @@ export class ArgoMarkers {
     this.group = new THREE.Group();
     this.scene.add(this.group);
     // Shared geometry — clean sphere markers
-    this._sharedGeometry = new THREE.SphereGeometry(0.35, 12, 12);
-    this._sharedMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 });
+    this._sharedGeometry = new THREE.SphereGeometry(0.35, 10, 10);
+    this._sharedMaterial = new THREE.MeshPhongMaterial({
+      color: 0xffaa00,
+      specular: 0xffffff,
+      shininess: 60,
+      emissive: 0x331800,
+      emissiveIntensity: 0.25,
+    });
   }
 
   /**

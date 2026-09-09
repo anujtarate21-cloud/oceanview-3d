@@ -48,6 +48,7 @@ async function bootstrap() {
 
   const oceanScene = new OceanScene(canvas);
   const waterColumnCage = new WaterColumnCage(oceanScene.scene);
+  waterColumnCage.setSelectedDepth(state.depth);
   const volumeRenderer = new VolumeRenderer(oceanScene.scene, state.colormap);
   const depthSlicer = new DepthSlicer(volumeRenderer);
   const coastline = new CoastlineLayer(oceanScene.scene);
@@ -55,12 +56,13 @@ async function bootstrap() {
   const thermoclineIsosurface = new ThermoclineIsosurface(oceanScene.scene);
   const gliderTracks = new GliderTracks(oceanScene.scene);
   const argoMarkers = new ArgoMarkers(oceanScene.scene);
+  const controlPanel = new ControlPanel();
   const argoInteraction = new ArgoInteraction(canvas, oceanScene.camera, argoMarkers, {
+    waterColumnCage,
+    controlPanel,
     tooltip: document.getElementById('argo-tooltip'),
     coordsEl: document.getElementById('status-coords'),
   });
-
-  const controlPanel = new ControlPanel();
   const colorbar = new ColormapEditor();
   const legend = new Legend('#top-left-legend #legend-container');
   const themeManager = new ThemeManager({ oceanScene });
@@ -412,6 +414,15 @@ async function bootstrap() {
     colorbar.setColormap(state.colormap);
     updateSliceStatus();
     await refreshVolume();
+  });
+
+  // Direct 3D Depth Ruler Badge Click Handler
+  document.addEventListener('ruler-depth-click', (e) => {
+    const depth = e.detail.depth;
+    if (depth !== undefined) {
+      if (controlPanel) controlPanel.setDepth(depth);
+      if (waterColumnCage) waterColumnCage.setSelectedDepth(depth);
+    }
   });
 
   // Debounce depth changes — wait DEPTH_DEBOUNCE_MS after user stops dragging before fetching tile
