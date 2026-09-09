@@ -57,12 +57,13 @@ async function bootstrap() {
   const thermoclineIsosurface = new ThermoclineIsosurface(oceanScene.scene);
   const gliderTracks = new GliderTracks(oceanScene.scene);
   const argoMarkers = new ArgoMarkers(oceanScene.scene);
+  const controlPanel = new ControlPanel();
   const argoInteraction = new ArgoInteraction(canvas, oceanScene.camera, argoMarkers, {
+    waterColumnCage,
+    controlPanel,
     tooltip: document.getElementById('argo-tooltip'),
     coordsEl: document.getElementById('status-coords'),
   });
-
-  const controlPanel = new ControlPanel();
   const colorbar = new ColormapEditor();
   const legend = new Legend('#top-left-legend');
   const themeManager = new ThemeManager({ oceanScene });
@@ -496,6 +497,9 @@ async function bootstrap() {
   const debouncedRefreshVolume = debounce(async () => await refreshVolume(), DEPTH_DEBOUNCE_MS);
   document.addEventListener('depth-change', (e) => {
     state.depth = e.detail.depth;
+    if (waterColumnCage && typeof waterColumnCage.setSelectedDepth === 'function') {
+      waterColumnCage.setSelectedDepth(state.depth);
+    }
     if (currentVectors && currentVectors.updateForDate) {
       currentVectors.updateForDate(state.date, state.depth);
     }
