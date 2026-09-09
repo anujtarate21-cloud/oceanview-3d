@@ -1,3 +1,4 @@
+
 import { OceanScene } from './scene/OceanScene.js';
 import { VolumeRenderer } from './scene/VolumeRenderer.js';
 import { CoastlineLayer } from './scene/CoastlineLayer.js';
@@ -48,6 +49,7 @@ async function bootstrap() {
 
   const oceanScene = new OceanScene(canvas);
   const waterColumnCage = new WaterColumnCage(oceanScene.scene);
+  waterColumnCage.setSelectedDepth(state.depth);
   const volumeRenderer = new VolumeRenderer(oceanScene.scene, state.colormap);
   const depthSlicer = new DepthSlicer(volumeRenderer);
   const coastline = new CoastlineLayer(oceanScene.scene);
@@ -479,6 +481,15 @@ async function bootstrap() {
     colorbar.setColormap(state.colormap);
     updateSliceStatus();
     await refreshVolume();
+  });
+
+  // Direct 3D Depth Ruler Badge Click Handler
+  document.addEventListener('ruler-depth-click', (e) => {
+    const depth = e.detail.depth;
+    if (depth !== undefined) {
+      if (controlPanel) controlPanel.setDepth(depth);
+      if (waterColumnCage) waterColumnCage.setSelectedDepth(depth);
+    }
   });
 
   // Debounce depth changes — wait DEPTH_DEBOUNCE_MS after user stops dragging before fetching tile

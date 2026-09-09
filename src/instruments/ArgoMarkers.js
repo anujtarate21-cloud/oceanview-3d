@@ -1,3 +1,12 @@
+import * as THREE from 'three';
+import { latLonDepthToXYZ } from '../utils/coordTransform.js';
+
+const _dummy = new THREE.Object3D();
+const _mat = new THREE.Matrix4();
+const _pos = new THREE.Vector3();
+const _quat = new THREE.Quaternion();
+const _scl = new THREE.Vector3();
+
 /**
  * Fast client-side geometric test to ensure no float is rendered on land.
  */
@@ -18,15 +27,6 @@ function isLandCoordinate(lat, lon) {
   return false;
 }
 
-import * as THREE from 'three';
-import { latLonDepthToXYZ } from '../utils/coordTransform.js';
-
-const _dummy = new THREE.Object3D();
-const _mat = new THREE.Matrix4();
-const _pos = new THREE.Vector3();
-const _quat = new THREE.Quaternion();
-const _scl = new THREE.Vector3();
-
 export class ArgoMarkers {
   /**
    * Constructs ArgoMarkers manager.
@@ -41,9 +41,15 @@ export class ArgoMarkers {
     this.instancedMesh = null;
     this.group = new THREE.Group();
     this.scene.add(this.group);
-    // Shared geometry — clean sphere markers with instance color support
-    this._sharedGeometry = new THREE.SphereGeometry(0.35, 12, 12);
-    this._sharedMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    // Shared geometry — clean sphere markers
+    this._sharedGeometry = new THREE.SphereGeometry(0.35, 10, 10);
+    this._sharedMaterial = new THREE.MeshPhongMaterial({
+      color: 0xffaa00,
+      specular: 0xffffff,
+      shininess: 60,
+      emissive: 0x331800,
+      emissiveIntensity: 0.25,
+    });
   }
 
   /**
@@ -83,30 +89,6 @@ export class ArgoMarkers {
       let lat = Number(float.lat) || 0;
       let lon = Number(float.lon) || 0;
 
-      // Determine realistic real-time operational depth for this float
-      let depth = 0;
-      if (float.depth !== undefined && float.depth !== null) {
-        depth = Number(float.depth);
-      } else if (float.current_depth !== undefined && float.current_depth !== null) {
-        depth = Number(float.current_depth);
-      } else if (float.platform_type === 'glider') {
-        // Autonomous Gliders execute sawtooth diving profiles between 20m and 980m
-        const idSeed = String(float.id || i).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-        depth = Math.round(Math.abs(Math.sin(idSeed * 0.47 + i * 1.3)) * 920 + 30);
-      } else {
-        // Argo floats: 10-day cycle stages
-        // ~10% near surface (transmitting), ~70% at 1000m parking depth, ~20% deep profiling (up to 2000m)
-        const idSeed = String(float.id || i).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-        const stage = idSeed % 10;
-        if (stage === 0) {
-          depth = Math.round((idSeed % 20) + 5); // Surface transmission (5–25m)
-        } else if (stage >= 1 && stage <= 7) {
-          depth = Math.round(950 + (idSeed % 120) - 60); // Drift parking depth (890–1070m)
-        } else {
-          depth = Math.round(1200 + (idSeed % 750)); // Deep CTD profiling (1200–1950m)
-        }
-      }
-
       // Ensure float is never placed on land
       if (isLandCoordinate(lat, lon)) {
         if (lon < 77.0) {
@@ -118,16 +100,11 @@ export class ArgoMarkers {
           lat = Math.min(lat, 6.5); // south into deep equatorial ocean
         }
       }
-
-      const xyz = latLonDepthToXYZ(lat, lon, depth, this.coordTransformConfig);
-      _dummy.position.set(xyz.x, xyz.y, xyz.z);
+      const xyz = latLonDepthToXYZ(lat, lon, 0, this.coordTransformConfig);
+      _dummy.position.set(xyz.x, xyz.y, xyz.z + 0.35);
       _dummy.scale.set(1, 1, 1);
       _dummy.updateMatrix();
       this.instancedMesh.setMatrixAt(i, _dummy.matrix);
-
-      // Use one orange marker color for consistent instrument visibility.
-      const col = new THREE.Color('#FF8C00');
-      this.instancedMesh.setColorAt(i, col);
 
       // Store userData on a lightweight proxy for raycasting compatibility
       const proxy = {
@@ -137,10 +114,9 @@ export class ArgoMarkers {
           platform_type: float.platform_type || 'argo',
           lat: lat,
           lon: lon,
-          depth: depth,
-          current_depth: depth,
           date: float.date,
-          max_depth: float.max_depth || 2000,
+          depth: float.depth || float.max_depth || 2000,
+          max_depth: float.max_depth || float.depth || 2000,
           surface_temp: float.surface_temp,
           surface_salinity: float.surface_salinity,
           levels_count: float.levels_count,
@@ -148,13 +124,12 @@ export class ArgoMarkers {
         instanceId: i,
         // Scale methods for hover feedback
         scale: { set: (sx, sy, sz) => this._setInstanceScale(i, sx, sy, sz) },
-        position: { x: xyz.x, y: xyz.y, z: xyz.z },
+        position: { x: xyz.x, y: xyz.y, z: xyz.z + 0.35 },
       };
       this.markers.push(proxy);
     }
 
     this.instancedMesh.instanceMatrix.needsUpdate = true;
-    if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true;
     this.group.add(this.instancedMesh);
   }
 
@@ -169,24 +144,6 @@ export class ArgoMarkers {
     this.instancedMesh.instanceMatrix.needsUpdate = true;
   }
 
-  setExaggeration(exaggeration) {
-    if (this.coordTransformConfig.verticalExaggeration === exaggeration) return;
-    this.coordTransformConfig.verticalExaggeration = exaggeration;
-    if (!this.instancedMesh || !this.markers.length) return;
-
-    for (let i = 0; i < this.markers.length; i++) {
-      const marker = this.markers[i];
-      const { lat, lon, depth } = marker.userData;
-      const xyz = latLonDepthToXYZ(lat, lon, depth || 0, this.coordTransformConfig);
-      _dummy.position.set(xyz.x, xyz.y, xyz.z);
-      _dummy.scale.set(1, 1, 1);
-      _dummy.updateMatrix();
-      this.instancedMesh.setMatrixAt(i, _dummy.matrix);
-      marker.position = { x: xyz.x, y: xyz.y, z: xyz.z };
-    }
-    this.instancedMesh.instanceMatrix.needsUpdate = true;
-  }
-
   /**
    * Computes the minimum and maximum operational depths among all currently rendered floats.
    */
@@ -194,7 +151,7 @@ export class ArgoMarkers {
     if (!this.markers.length) return { minDepth: 0, maxDepth: 2000, count: 0 };
     let min = Infinity, max = -Infinity;
     for (const m of this.markers) {
-      const d = m.userData.depth || 0;
+      const d = m.userData.depth || m.userData.max_depth || 0;
       if (d < min) min = d;
       if (d > max) max = d;
     }
@@ -203,6 +160,10 @@ export class ArgoMarkers {
       maxDepth: max === -Infinity ? 2000 : Math.round(max),
       count: this.markers.length,
     };
+  }
+
+  setExaggeration(exaggeration) {
+    // Retained for interface compatibility
   }
 
   update(time = 0) {

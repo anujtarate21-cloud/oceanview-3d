@@ -2,10 +2,10 @@ const DEFAULTS = {
   latCenter: 12.5,
   lonCenter: 77.5,
   scaleFactor: 1.6,
-  verticalExaggeration: 50,
+  verticalExaggeration: 75,
 };
 
-export function getDepthZ(depth, verticalExaggeration = 50) {
+export function getDepthZ(depth, verticalExaggeration = 75) {
   // Proportional vertical scaling: at 50x exaggeration, 5000m = -15 scene units (~30% of horizontal domain)
   return -Number(depth || 0) * (Number(verticalExaggeration || 50) / 50) * 0.003;
 }
