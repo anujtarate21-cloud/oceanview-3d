@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { latLonDepthToXYZ, getDepthZ } from '../utils/coordTransform.js';
 
 /**
- * WaterColumnCage.js — 3D "Fish Tank" Aquarium Bounding Box & Depth Ruler
+ * WaterColumnCage.js — 3D "Fish Tank" Aquarium Bounding Box & Interactive Depth Ruler
  *
  * Features:
  *  - 4 vertical corner pillars (Surface 0m to Seafloor 5000m)
  *  - Surface & seafloor perimeter frames and geographic graticule grids
  *  - Intermediate depth level guide rings (200m thermocline, 1000m intermediate, 2000m deep)
- *  - Billboard depth ruler badges along front-left corner pillar (0m, -100m, -200m, -500m, -1000m, -2000m, -5000m)
+ *  - Interactive billboard depth ruler badges along front-left corner pillar with click-to-select
+ *  - Luminous cyan halo and [SELECTED] indicator on active depth
  *  - Dynamic scaling with vertical exaggeration (75x default)
  *  - High-contrast color adaptation for all Light and Dark themes
  */
@@ -33,12 +34,12 @@ export class WaterColumnCage {
     this.selectedDepth = 0;
 
     this.rulerLevels = [
-      { depth: 0,    label: '0 m (Surface)' },
-      { depth: 200,  label: '200 m (Thermocline)' },
-      { depth: 500,  label: '500 m' },
-      { depth: 1000, label: '1000 m (Intermediate)' },
-      { depth: 2000, label: '2000 m (Deep)' },
-      { depth: 5000, label: '5000 m (Seafloor)' },
+      { depth: 0,    label: '0m · Surface' },
+      { depth: 200,  label: '200m · Thermocline' },
+      { depth: 500,  label: '500m · Mesopelagic' },
+      { depth: 1000, label: '1000m · Argo Drift' },
+      { depth: 2000, label: '2000m · Deep CTD' },
+      { depth: 5000, label: '5000m · Seafloor' },
     ];
 
     this._buildCage();
