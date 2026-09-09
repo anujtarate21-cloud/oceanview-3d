@@ -490,6 +490,7 @@ async function bootstrap() {
     if (depth !== undefined) {
       if (controlPanel) controlPanel.setDepth(depth);
       if (waterColumnCage) waterColumnCage.setSelectedDepth(depth);
+      refreshVolume();
     }
   });
 

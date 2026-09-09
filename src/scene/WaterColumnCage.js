@@ -174,12 +174,14 @@ export class WaterColumnCage {
     // Front-Left corner at (60°E, 0°N)
     const cSW = latLonDepthToXYZ(this.minLat, this.minLon, 0);
 
+    this.labelGroup.renderOrder = 999;
     this.rulerSprites = [];
     for (const item of this.rulerLevels) {
       const isSelected = (item.depth === this.selectedDepth);
       const sprite = this._createTextSprite(item.label, this.isLightMode, isSelected);
       sprite.userData = { depth: item.depth, label: item.label, isSelected };
       sprite.position.set(cSW.x - 3.2, cSW.y - 3.2, getDepthZ(item.depth, this.currentExaggeration));
+      sprite.renderOrder = 999;
       this.labelGroup.add(sprite);
       this.rulerSprites.push(sprite);
     }
@@ -249,6 +251,7 @@ export class WaterColumnCage {
       depthTest: false,
     });
     const sprite = new THREE.Sprite(material);
+    sprite.renderOrder = 999;
     sprite.scale.set(isSelected ? 5.6 : 4.8, isSelected ? 0.92 : 0.75, 1);
     return sprite;
   }

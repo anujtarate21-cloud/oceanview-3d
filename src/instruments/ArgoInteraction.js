@@ -20,7 +20,7 @@ export class ArgoInteraction {
     this.controlPanel = options.controlPanel || null;
     this.tooltip = options.tooltip || document.getElementById('argo-tooltip');
     this.coordsEl = options.coordsEl || document.getElementById('status-coords');
-    this.throttleMs = options.throttleMs || RAYCAST_THROTTLE_MS || 30;
+    this.throttleMs = options.throttleMs || 20;
 
     this.raycaster = new THREE.Raycaster();
     this.raycaster.params.Points = { threshold: 0.5 };
@@ -75,6 +75,15 @@ export class ArgoInteraction {
     const sprites = this.waterColumnCage.getRulerSprites();
     if (!sprites || sprites.length === 0) return null;
 
+    // 1. Exact 3D Raycasting against camera-facing sprite billboard quads
+    this._updateMouseCoords({ clientX, clientY });
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const rayHits = this.raycaster.intersectObjects(sprites, false);
+    if (rayHits.length > 0) {
+      return rayHits[0].object;
+    }
+
+    // 2. High-tolerance Screen-Space Projection (generous padding for comfortable hovering/clicking)
     const rect = this.canvas.getBoundingClientRect();
     const mouseX = clientX - rect.left;
     const mouseY = clientY - rect.top;
@@ -107,7 +116,7 @@ export class ArgoInteraction {
       const projH = (0.75 / visH) * rect.height;
 
       const halfHitW = Math.max(120, (projW / 2) * 1.55);
-      const halfHitH = Math.max(32, (projH / 2) * 1.65);
+      const halfHitH = Math.max(30, (projH / 2) * 1.6);
 
       if (Math.abs(dx) <= halfHitW && Math.abs(dy) <= halfHitH) {
         const dist = Math.hypot(dx, dy);
