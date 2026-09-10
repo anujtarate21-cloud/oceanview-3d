@@ -42,6 +42,14 @@ const state = {
 };
 
 async function bootstrap() {
+  // Universal failsafe timeout to guarantee the loading overlay never traps the user
+  setTimeout(() => {
+    const ls = document.getElementById('loading-screen');
+    if (ls && !ls.classList.contains('hidden')) {
+      ls.classList.add('hidden');
+    }
+  }, 3500);
+
   const canvas = document.getElementById('ocean-canvas');
 
   // Ping FastAPI backend with 800ms timeout — if it's down, all loads go directly to static /public/data/
@@ -200,6 +208,11 @@ async function bootstrap() {
   volumeRenderer.loadDepthSlice(initialTile);
   colorbar.setColormap(state.colormap);
   drawColorbarWithTile(initialTile);
+
+  // Early dismiss loading screen as soon as initial 3D slice is drawn
+  const earlyLoadingScreen = document.getElementById('loading-screen');
+  if (earlyLoadingScreen) earlyLoadingScreen.classList.add('hidden');
+
 
   const positions = (await loadArgoPositions(state.timestep, state.date)) || generateSyntheticArgoPositions();
   await argoMarkers.load(positions);
