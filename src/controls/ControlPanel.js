@@ -208,9 +208,35 @@ export class ControlPanel {
   }
 
   _bindEvents() {
+    // Scale toggle buttons (Linear vs Logarithmic)
+    const btnLinear = document.getElementById('scale-linear-btn');
+    const btnLog = document.getElementById('scale-log-btn');
+    const scaleToggleRow = document.getElementById('scale-toggle-row');
+
+    const setScaleUI = (scale) => {
+      const isLog = scale === 'log';
+      if (btnLinear) btnLinear.classList.toggle('active', !isLog);
+      if (btnLog) btnLog.classList.toggle('active', isLog);
+      this._emit('scale-change', { scale: isLog ? 'log' : 'linear', isLogScale: isLog });
+    };
+
+    btnLinear?.addEventListener('click', () => setScaleUI('linear'));
+    btnLog?.addEventListener('click', () => setScaleUI('log'));
+
     // Variable change
     this.els.variable?.addEventListener('change', (e) => {
       const val = e.target.value;
+      const isChlorophyll = val === 'chlorophyll';
+
+      // Show scale toggle exclusively for chlorophyll — auto-hide and reset for all others
+      if (scaleToggleRow) scaleToggleRow.style.display = isChlorophyll ? 'flex' : 'none';
+
+      if (isChlorophyll) {
+        setScaleUI('log');   // chlorophyll → default log scale
+      } else {
+        setScaleUI('linear'); // all others → reset to linear before hiding
+      }
+
       this._syncVariableBadge(val);
       this._updateDepthReadout();
       this._emit('variable-change', { variable: val });

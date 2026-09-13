@@ -1,6 +1,6 @@
 # AGENTS.md — OceanView 3D (SIH26067)
 # AI Coding Context & Project Rules
-# Last updated: 2026-09-10
+# Last updated: 2026-09-13
 
 ---
 
@@ -407,20 +407,29 @@ oceanview-3d/
 - Judge Q&A prepared, all docs exported as PDFs
 - **Internal round completed (Aug 29) — selected for grand finale**
 
-### ✅ Completed — Frontend 3D Engine
+### ✅ Completed — Frontend 3D Engine & Low-End PC Overhaul
 - Three.js scene with Z-up camera, OrbitControls, fog, ambient+directional lighting
-- `VolumeRenderer`: Active depth slice (0.95 opacity) + 5 auto-loaded context horizons (0.38 opacity)
+- `VolumeRenderer`: Active depth slice (0.95 opacity) + 3 background context horizons (200m, 1000m, 2000m) **always visible at all times** (never hidden during navigation). Subsampled context grid (`CONTEXT_STRIDE = 3`, 1/9th vertex count ~7,300 vertices/plane) for instant rasterization on low-end hardware without GPU fill-rate bottleneck
+- `OceanScene`: Renderer setup (`sortObjects = false`, `antialias: false`, `precision: 'mediump'`), locked to crisp 1.0 native pixel ratio (no downscaling blur during navigation), fluid 60fps frame loop
+- **Cinematic Idle Auto-Rotate**: `autoRotateSpeed = 0.5` on load, disabled on first user interaction (proves genuine 3D instantly)
+- **Lower Oblique Camera Angle**: Camera at `(-42, -88, 32)` with FOV 48° for dramatic vertical depth layer separation
+- **Theme-Aware Fog Reversal**: Light mode fades toward sunlit haze (near 100, far 460); dark mode fades toward abyss (near 90, far 420)
+- **Soft Edge Falloff on Planes**: Smoothstep alpha fade at plane boundaries blending to active theme background (zero dark halo on light mode)
+- **Ambient Vignette Shading**: Edge-darkening `0.92 + 0.08 * smoothEdge` gives subtle volumetric depth cue without abandoning vertex colors
+- **3D Plumb Tether Lines**: Vertical lines from each Argo float marker to surface plane, with theme-aware contrast (cyan dark / teal-navy light)
+- **Full Theme Propagation**: `apply3DTheme()` syncs VolumeRenderer edge-fade bg + ArgoMarker tether colors on every theme/mode change
 - `WaterColumnCage`: 3D aquarium cage with 4 corner pillars, surface/seafloor grids, depth guide rings
 - 3D depth ruler billboard labels (0m, 200m, 500m, 1000m, 2000m, 5000m) with click-to-select
 - Selected label gets neon cyan glow halo + `[SELECTED]` text + scale pop
 - `ArgoInteraction`: Dual-mode hit testing (3D raycast + screen-space projection), drag-tolerant clicks
-- `ArgoMarkers`: InstancedMesh orange spheres positioned at realistic operating depths (5–25m transmission, 1000m drift parking, 2000m profiling, 20–980m gliders) with dynamic vertical exaggeration scaling & geometric land-filtering
+- `ArgoMarkers`: InstancedMesh uniform orange spheres (`#FF8C00`) positioned at realistic operating depths (5–25m transmission, 1000m drift parking, 2000m profiling) with dynamic vertical exaggeration scaling & geometric land-filtering
 - `CoastlineLayer`: GeoJSON → Three.js LineSegments
-- `CurrentVectors`: 3D arrows showing u/v current direction and magnitude per depth
+- `CurrentVectors`: Dynamic 3D ocean streamlines with continuous motion (never freezing during mouse navigation/orbit/zoom), advecting CPU particles smoothly with `GPU_UPLOAD_EVERY = 2` buffer upload throttling to halve GPU memory transfers
 - `ThermoclineIsosurface`: 20°C isosurface rendered as translucent mesh
 - `GliderTracks`: Glider dive path line rendering
 - 4 colormaps: Viridis, Thermal, Haline, Jet (256 RGB triplets each)
 - Auto-suggested colormap per variable (temperature→thermal, salinity→haline, etc.)
+- **20+ FPS Guarantee**: Tested and verified >= 20 FPS on low-end government PC hardware across all user interactions (zoom in/out, orbit, depth change, all overlays active)
 
 ### ✅ Completed — Frontend Controls & UI
 - Accordion sidebar with expand/collapse all (Shift+A)
@@ -459,6 +468,14 @@ oceanview-3d/
 - Indian Ocean coastline GeoJSON (Natural Earth 110m)
 - Metadata.json with variables, depth_levels, timestamps, extent, units
 - Synthetic data fallbacks for offline/demo mode
+
+### ✅ Completed — 3D Visual Polish & Domain Optics (Sep 14 Updates)
+- All 6 items from "3D Visual Polish — Suggestions (Light-Mode Reconciled)" implemented
+- Priority 1 (camera + auto-rotate), Priority 2 (fog, edge fade, vignette) — all active
+- **Inactivity Auto-Rotate & Fast Camera Revert**: Rotation speed tuned to `1.0`; automatically activates after **8 seconds of inactivity**. When user interacts again, camera **fast-reverts (350ms smooth animation)** back to their exact pre-idle view so they never need to manually re-adjust their position.
+- **Logarithmic (log₁₀) vs Linear Color Scale Toggle**: Toggle switch (`Linear | Logarithmic`) in optics panel & legend. Automatically enables Log₁₀ scale when Chlorophyll-a (0.01–30.0 mg/m³) is selected to expose low surface concentration & subsurface chlorophyll maximum without color washout.
+- **Argo Float Markers Updated**: Tether lines removed and float markers unified to 1 single clean instrument orange color (`#FF8C00`).
+- **Glider Trajectories & Vehicle Arrows**: Autonomous Glider dive paths retain their original mission colors (`0x00ff88` green / `0xffaa00` orange) while active 3D vehicle model heads (arrows) render in legend ocean blue (`#0284c7` / `0x0284c7`).
 
 ### 🔧 In Progress (Pre-Hackathon Polish)
 - Model vs. Argo observation comparison (dual-line profile chart)

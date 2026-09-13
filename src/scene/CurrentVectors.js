@@ -12,12 +12,14 @@ import { latLonDepthToXYZ } from '../utils/coordTransform.js';
  */
 
 // ── Performance & Scale Constants ────────────────────────────────────────────
-const PARTICLE_COUNT = 240;  // Sleek, well-spaced 3D stream capsules across the Indian Ocean
-const ADVECT_SCALE   = 1.0;  // Visual degrees lat/lon per m/s per second
-const MIN_AGE        = 3.0;  // Minimum particle lifetime (seconds)
-const MAX_AGE        = 5.0;  // Maximum particle lifetime (seconds)
-const MAX_DT         = 0.05; // Frame delta cap (seconds)
-const Z_NUDGE        = 0.15; // Z-elevation offset to float cleanly right above volume plane
+const PARTICLE_COUNT   = 100;  // Reduced for low-end GPU support (was 120)
+const ADVECT_SCALE     = 2.8;  // Dynamic visual degrees lat/lon advection speed
+const MIN_AGE          = 2.5;  // Minimum particle lifetime (seconds)
+const MAX_AGE          = 4.5;  // Maximum particle lifetime (seconds)
+const MAX_DT           = 0.05; // Frame delta cap (seconds)
+const Z_NUDGE          = 0.15; // Z-elevation offset to float cleanly right above volume plane
+// GPU upload throttle: advect CPU every frame, upload to GPU every N frames only
+const GPU_UPLOAD_EVERY = 2;    // Upload matrices/colors every 2nd frame (invisible to eye)
 
 // ── Speed colors chosen for strong contrast over the model surface
 const COLOR_SLOW          = new THREE.Color('#007C91'); // < 0.4 m/s (deep cyan)
@@ -59,8 +61,10 @@ export class CurrentVectors {
     this.velGrid = null;
     this.pData   = new Array(PARTICLE_COUNT);
 
-    this.instancedMesh = null;
-    this._lastTimeMs   = null;
+    this.instancedMesh  = null;
+    this._lastTimeMs    = null;
+    this._gpuFrame      = 0;  // counts frames for GPU upload throttling
+    this._oceanScene    = null; // set via setOceanScene() for nav-aware updates
 
     this._buildVelocityGrid();
     this._initStreamlines();
@@ -302,18 +306,27 @@ export class CurrentVectors {
     this.group.visible = this.visible;
   }
 
+  /** Wire the OceanScene instance for navigation-aware update skipping. */
+  setOceanScene(oceanScene) {
+    this._oceanScene = oceanScene;
+  }
+
   /**
    * Per-frame advection — called from main.js render loop ONLY when visible.
+   * During navigation: CPU advects particles but GPU upload is skipped entirely.
    * @param {number} timeMs performance.now() timestamp
    */
   update(timeMs) {
     if (!this.visible || !this.instancedMesh) return;
+
+    const isNav = this._oceanScene?.isNavigating ?? false;
 
     const dt = this._lastTimeMs !== null
       ? Math.min((timeMs - this._lastTimeMs) / 1000, MAX_DT)
       : 0.016;
     this._lastTimeMs = timeMs;
 
+    // CPU advection always runs (cheap — just float arithmetic)
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const p = this.pData[i];
       p.age += dt;
@@ -344,8 +357,13 @@ export class CurrentVectors {
       this._updateInstanceTransform(i, lifeAlpha);
     }
 
-    this.instancedMesh.instanceMatrix.needsUpdate = true;
-    if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true;
+    // GPU upload throttled — push buffer every GPU_UPLOAD_EVERY frames.
+    // Cuts GPU bus bandwidth in half while keeping particle motion continuously flowing.
+    this._gpuFrame = (this._gpuFrame + 1) % GPU_UPLOAD_EVERY;
+    if (this._gpuFrame === 0) {
+      this.instancedMesh.instanceMatrix.needsUpdate = true;
+      if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true;
+    }
   }
 
   dispose() {

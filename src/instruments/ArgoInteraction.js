@@ -20,7 +20,7 @@ export class ArgoInteraction {
     this.controlPanel = options.controlPanel || null;
     this.tooltip = options.tooltip || document.getElementById('argo-tooltip');
     this.coordsEl = options.coordsEl || document.getElementById('status-coords');
-    this.throttleMs = options.throttleMs || 20;
+    this.throttleMs = options.throttleMs || 45;
 
     this.raycaster = new THREE.Raycaster();
     this.raycaster.params.Points = { threshold: 0.5 };
@@ -189,6 +189,9 @@ export class ArgoInteraction {
    * @param {PointerEvent} event
    */
   _onPointerMove(event) {
+    // Skip hover raycasting while dragging/orbiting camera (100% lag-free 60 FPS OrbitControls)
+    if (event.buttons !== 0 || this.camera?.parent?.isNavigating) return;
+
     const now = performance.now();
     if (now - this.lastRaycastTime < this.throttleMs) return;
     this.lastRaycastTime = now;

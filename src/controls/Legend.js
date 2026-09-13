@@ -23,7 +23,7 @@ export class Legend {
     this._labelEl = this._root?.querySelector('#legend-label');
     this._badgeEl = this._root?.querySelector('#legend-active-var-badge') || document.getElementById('legend-active-var-badge');
 
-    this._state = { variable: 'temperature', units: '°C', min: 0, max: 100, colormap: 'viridis' };
+    this._state = { variable: 'temperature', units: '°C', min: 0, max: 100, colormap: 'viridis', isLogScale: false };
   }
 
   /**
@@ -34,13 +34,15 @@ export class Legend {
    * @param {number} opts.min
    * @param {number} opts.max
    * @param {string} opts.colormap  - one of the keys in colormaps.js
+   * @param {boolean} opts.isLogScale
    */
-  update({ variable, units, min, max, colormap } = {}) {
+  update({ variable, units, min, max, colormap, isLogScale } = {}) {
     if (variable !== undefined) this._state.variable  = variable;
     if (units    !== undefined) this._state.units      = units;
     if (min      !== undefined) this._state.min        = min;
     if (max      !== undefined) this._state.max        = max;
     if (colormap !== undefined) this._state.colormap   = colormap;
+    if (isLogScale !== undefined) this._state.isLogScale = Boolean(isLogScale);
 
     this._redraw();
   }
@@ -48,6 +50,12 @@ export class Legend {
   /** Convenience: update just the colormap */
   setColormap(name) {
     this._state.colormap = name;
+    this._redraw();
+  }
+
+  /** Convenience: update log scale */
+  setLogScale(isLogScale) {
+    this._state.isLogScale = Boolean(isLogScale);
     this._redraw();
   }
 
@@ -62,17 +70,18 @@ export class Legend {
   // ── Private ────────────────────────────────────────────────────────────────
 
   _redraw() {
-    const { variable, units, min, max } = this._state;
+    const { variable, units, min, max, isLogScale } = this._state;
     const name = variable.charAt(0).toUpperCase() + variable.slice(1);
+    const suffix = isLogScale ? ' [Log10]' : '';
 
     if (this._badgeEl) {
-      this._badgeEl.textContent = `${name} (${units})`;
+      this._badgeEl.textContent = `${name} (${units})${suffix}`;
     }
 
     // Text labels if present
     if (this._minEl)   this._minEl.textContent   = this._fmt(min) + ' ' + units;
     if (this._maxEl)   this._maxEl.textContent   = this._fmt(max) + ' ' + units;
-    if (this._labelEl) this._labelEl.textContent = `${name} (${units})`;
+    if (this._labelEl) this._labelEl.textContent = `${name} (${units})${suffix}`;
   }
 
   _fmt(v) {

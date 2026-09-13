@@ -167,7 +167,7 @@ export class OutreachMode {
       } else {
         this.stop();
       }
-    }, 8000);
+    }, 4000);
   }
 
   _flyCameraTo(camPos, targetPos) {

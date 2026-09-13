@@ -229,9 +229,10 @@ export class ThemeManager {
     const themeObj = THEMES.find(t => t.id === this.currentTheme);
     if (!themeObj) return;
     const colors = themeObj[this.currentMode] || themeObj.dark;
+    const isLight = this.currentMode === 'light';
     
     if (typeof this.oceanScene.updateThemeColors === 'function') {
-      this.oceanScene.updateThemeColors(colors.bg3d, colors.fog);
+      this.oceanScene.updateThemeColors(colors.bg3d, colors.fog, isLight);
     }
   }
 

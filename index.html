@@ -37,12 +37,12 @@
     </div>
     <div id="topbar-right">
       <div class="telemetry-pill-group">
-        <span class="system-status-badge live-badge" title="Operational Data Stream"><span class="pulse-dot"></span> HYCOM 1/12° OPERATIONAL</span>
         <span class="system-status-badge info-badge" title="Argo Profiling Floats Network">4,000+ IN-SITU ARGO</span>
       </div>
 
-      <!-- Institutional Curated Themes & Dark/Light Mode Selector -->
-      <div class="theme-control-wrap">
+      <!-- Curated Themes Selector -->
+      <div class="theme-control-wrap" title="Theme Selector">
+        <span class="theme-label">Themes:</span>
         <select id="theme-select" class="theme-select" title="Switch Theme (Shift + T)">
           <option value="standard-marine-light">INCOIS Official (Govt Light)</option>
           <option value="default-dark">INCOIS Mission Slate (Dark)</option>
@@ -160,6 +160,13 @@
               <option value="haline">Haline (Salinity Gradient)</option>
               <option value="jet">Jet (Classic Rainbow)</option>
             </select>
+          </div>
+          <div class="color-scale-toggle-row" id="scale-toggle-row" style="display:none;">
+            <span class="scale-label">Scale Mode:</span>
+            <div class="scale-btn-group" role="radiogroup" aria-label="Color Scale Mode">
+              <button type="button" id="scale-linear-btn" class="scale-btn active" data-scale="linear">Linear</button>
+              <button type="button" id="scale-log-btn" class="scale-btn" data-scale="log">Log₁₀</button>
+            </div>
           </div>
           <div id="colorbar-container">
             <canvas id="colorbar" width="260" height="12"></canvas>

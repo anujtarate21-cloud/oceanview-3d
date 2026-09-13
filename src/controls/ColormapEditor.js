@@ -15,6 +15,7 @@ export class ColormapEditor {
     this.currentUnits = '°C';
     this.lastMin = 0;
     this.lastMax = 30;
+    this.isLogScale = false;
   }
 
   setColormap(name) {
@@ -24,6 +25,13 @@ export class ColormapEditor {
       this.currentColormap = 'viridis';
     }
     // Redraw with last known range if available
+    if (this.ctx) {
+      this.draw(this.lastMin, this.lastMax, this.currentUnits);
+    }
+  }
+
+  setLogScale(isLogScale) {
+    this.isLogScale = Boolean(isLogScale);
     if (this.ctx) {
       this.draw(this.lastMin, this.lastMax, this.currentUnits);
     }
@@ -57,9 +65,16 @@ export class ColormapEditor {
     }
     this.ctx.putImageData(imageData, 0, 0);
 
-    const fmt = (v) => (v !== undefined && v !== null && !isNaN(v)) ? `${Number(v).toFixed(1)}${this.currentUnits}` : '--';
+    const fmt = (v) => (v !== undefined && v !== null && !isNaN(v))
+      ? (Math.abs(v) < 0.1 || Math.abs(v) >= 100 ? Number(v).toFixed(2) : Number(v).toFixed(1)) + this.currentUnits
+      : '--';
+
+    const midVal = (this.isLogScale && this.lastMin > 0 && this.lastMax > this.lastMin)
+      ? Math.sqrt(this.lastMin * this.lastMax)
+      : (this.lastMin + this.lastMax) / 2;
+
     if (this.minLabel) this.minLabel.textContent = fmt(this.lastMin);
-    if (this.midLabel) this.midLabel.textContent = fmt((this.lastMin + this.lastMax) / 2);
+    if (this.midLabel) this.midLabel.textContent = fmt(midVal) + (this.isLogScale ? ' (log₁₀)' : '');
     if (this.maxLabel) this.maxLabel.textContent = fmt(this.lastMax);
   }
 }

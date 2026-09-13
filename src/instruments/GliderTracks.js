@@ -75,12 +75,8 @@ export class GliderTracks {
       // Smooth 3D spline curve for the glider dive trajectory
       const curve = new THREE.CatmullRomCurve3(points);
       const tubeGeom = new THREE.TubeGeometry(curve, 200, 0.12, 6, false);
-      const tubeMat = new THREE.MeshStandardMaterial({
+      const tubeMat = new THREE.MeshBasicMaterial({
         color: mission.color,
-        emissive: mission.color,
-        emissiveIntensity: 0.35,
-        roughness: 0.3,
-        metalness: 0.6,
       });
 
       const trackMesh = new THREE.Mesh(tubeGeom, tubeMat);
@@ -88,13 +84,11 @@ export class GliderTracks {
       this.group.add(trackMesh);
       this.trackMeshes.push(trackMesh);
 
-      // Glider active vehicle model (arrow/delta wing representation)
+      // Glider active vehicle model (arrow/delta wing representation) - Blue as shown in legend (#0284c7)
       const gliderGeom = new THREE.ConeGeometry(0.35, 0.9, 5);
       gliderGeom.rotateX(Math.PI / 2);
-      const gliderMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        emissive: mission.color,
-        emissiveIntensity: 0.8,
+      const gliderMat = new THREE.MeshBasicMaterial({
+        color: 0x0284c7, // Vibrant Ocean Blue matching legend
       });
       const gliderHead = new THREE.Mesh(gliderGeom, gliderMat);
       gliderHead.userData = { curve, speed: 0.04 + mIdx * 0.01, dateOffset: 0 };

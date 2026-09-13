@@ -58,10 +58,11 @@ async function bootstrap() {
   const oceanScene = new OceanScene(canvas);
   const waterColumnCage = new WaterColumnCage(oceanScene.scene);
   waterColumnCage.setSelectedDepth(state.depth);
-  const volumeRenderer = new VolumeRenderer(oceanScene.scene, state.colormap);
+  const volumeRenderer = new VolumeRenderer(oceanScene.scene, state.colormap, oceanScene);
   const depthSlicer = new DepthSlicer(volumeRenderer);
   const coastline = new CoastlineLayer(oceanScene.scene);
   const currentVectors = new CurrentVectors(oceanScene.scene);
+  currentVectors.setOceanScene(oceanScene);
   const thermoclineIsosurface = new ThermoclineIsosurface(oceanScene.scene);
   const gliderTracks = new GliderTracks(oceanScene.scene);
   const argoMarkers = new ArgoMarkers(oceanScene.scene);
@@ -561,6 +562,16 @@ async function bootstrap() {
     }
   });
 
+  document.addEventListener('scale-change', (e) => {
+    const isLog = e.detail.isLogScale;
+    volumeRenderer.setLogScale(isLog);
+    colorbar.setLogScale(isLog);
+    legend.setLogScale(isLog);
+    if (volumeRenderer.lastTile) {
+      drawColorbarWithTile(volumeRenderer.lastTile);
+    }
+  });
+
   document.addEventListener('opacity-change', (e) => volumeRenderer.setOpacity(e.detail.opacity));
   document.addEventListener('exag-change', (e) => {
     const ex = e.detail.exaggeration;
@@ -664,6 +675,24 @@ async function bootstrap() {
 
     coastline.updateThemeColor(coastColor, isLight ? 0.95 : 0.85);
     waterColumnCage.updateThemeColor(cagePrimary, cageGuide, cageGrid, isLight);
+
+    // Sync VolumeRenderer edge-fade background → prevents dark halo on light themes
+    const themeColors = (function () {
+      const t = [
+        { id: 'standard-marine-light', dark: { bg3d: 0x061426 }, light: { bg3d: 0xffffff } },
+        { id: 'default-dark', dark: { bg3d: 0x071322 }, light: { bg3d: 0xdbeafe } },
+        { id: 'enterprise-hydro', dark: { bg3d: 0x0a192f }, light: { bg3d: 0xf8fafc } },
+        { id: 'coastal-chart', dark: { bg3d: 0x07151e }, light: { bg3d: 0xebf3f5 } },
+        { id: 'journal-paper', dark: { bg3d: 0x0f172a }, light: { bg3d: 0xf8faf8 } },
+        { id: 'bright-horizon', dark: { bg3d: 0x040714 }, light: { bg3d: 0xf0f9ff } },
+      ];
+      const found = t.find(x => x.id === themeId);
+      return found ? found[mode] : { bg3d: 0x0a0a2e };
+    })();
+    volumeRenderer.setThemeColors(themeColors.bg3d, isLight);
+
+    // Sync ArgoMarker tether line contrast for light/dark mode
+    argoMarkers.updateThemeColor(isLight);
   };
 
   document.addEventListener('theme-changed', (e) => {
@@ -678,6 +707,10 @@ async function bootstrap() {
   let fpsFrames = 0;
   let fpsLast = performance.now();
   oceanScene.onUpdate((time) => {
+    if (oceanScene.controls && volumeRenderer.setZoomLevel) {
+      volumeRenderer.setZoomLevel(oceanScene.controls.getDistance());
+    }
+
     currentVectors.update(time);
     thermoclineIsosurface.update(time);
     gliderTracks.update(time);

@@ -4,8 +4,8 @@
  */
 
 // ── Camera ─────────────────────────────────────────────────────────────────
-export const CAMERA_INITIAL_POSITION = { x: -35, y: -75, z: 55 };
-export const CAMERA_FOV      = 45;
+export const CAMERA_INITIAL_POSITION = { x: -42, y: -88, z: 32 };
+export const CAMERA_FOV      = 48;
 export const CAMERA_NEAR     = 0.1;
 export const CAMERA_FAR      = 2000;
 

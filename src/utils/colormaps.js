@@ -53,10 +53,10 @@ export const VIRIDIS = viridis;
 
 /**
  * Map a data value to a THREE.Color using the given colormap.
- * If `target` is provided, writes into it (zero-alloc hot path);
- * otherwise creates and returns a new Color (backwards compatible).
+ * Supports logarithmic scaling (log10) for wide dynamic range variables like Chlorophyll-a.
+ * If `target` is provided, writes into it (zero-alloc hot path).
  */
-export function valueToColor(value, min, max, colormap = viridis, target = null) {
+export function valueToColor(value, min, max, colormap = viridis, target = null, isLogScale = false) {
   const cmap = typeof colormap === 'string' ? (COLORMAPS[colormap] || viridis) : colormap;
   const out = target || new THREE.Color();
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -64,7 +64,17 @@ export function valueToColor(value, min, max, colormap = viridis, target = null)
     out.setRGB(0.831, 0.773, 0.663);
     return out;
   }
-  const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
+  let t;
+  if (isLogScale) {
+    const safeMin = min > 0 ? min : 0.01;
+    const safeMax = max > safeMin ? max : safeMin + 1.0;
+    const safeVal = Math.max(safeMin, Math.min(safeMax, Number(value) || safeMin));
+    const logMin = Math.log10(safeMin);
+    const logMax = Math.log10(safeMax);
+    t = Math.max(0, Math.min(1, (Math.log10(safeVal) - logMin) / (logMax - logMin || 1)));
+  } else {
+    t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
+  }
   const index = Math.floor(t * 255);
   const [r, g, b] = (Array.isArray(cmap) ? cmap : viridis)[index] || [212, 197, 169];
   out.setRGB(r / 255, g / 255, b / 255);
@@ -73,13 +83,23 @@ export function valueToColor(value, min, max, colormap = viridis, target = null)
 
 /**
  * Map a data value to an [r, g, b] triplet (0-255) using the given colormap.
- * Returns the Clean Off-White / Ice color for null / NaN land values.
+ * Supports logarithmic scaling (log10) for wide dynamic range variables.
  */
-export function valueToRGB(value, min, max, colormapArray) {
+export function valueToRGB(value, min, max, colormapArray, isLogScale = false) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return [212, 197, 169]; // Soft Sand / Parchment (#D4C5A9) — light-mode terrain
   }
-  const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
+  let t;
+  if (isLogScale) {
+    const safeMin = min > 0 ? min : 0.01;
+    const safeMax = max > safeMin ? max : safeMin + 1.0;
+    const safeVal = Math.max(safeMin, Math.min(safeMax, Number(value) || safeMin));
+    const logMin = Math.log10(safeMin);
+    const logMax = Math.log10(safeMax);
+    t = Math.max(0, Math.min(1, (Math.log10(safeVal) - logMin) / (logMax - logMin || 1)));
+  } else {
+    t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
+  }
   const index = Math.floor(t * 255);
   const cmap = Array.isArray(colormapArray) ? colormapArray : (COLORMAPS[colormapArray] || viridis);
   return cmap[index] || [243, 244, 246];

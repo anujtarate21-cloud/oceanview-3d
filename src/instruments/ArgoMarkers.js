@@ -30,7 +30,7 @@ const _scl = new THREE.Vector3();
 export class ArgoMarkers {
   /**
    * Constructs ArgoMarkers manager.
-   * Uses InstancedMesh for single-draw-call rendering of all floats.
+   * Uses InstancedMesh for single-draw-call rendering of all floats in uniform instrument orange.
    * @param {THREE.Scene} scene The Three.js Scene instance
    * @param {Object} [coordTransformConfig] Coordinate transform configuration
    */
@@ -41,6 +41,7 @@ export class ArgoMarkers {
     this.instancedMesh = null;
     this.group = new THREE.Group();
     this.scene.add(this.group);
+
     // Shared geometry — clean sphere markers with instance color support
     this._sharedGeometry = new THREE.SphereGeometry(0.35, 12, 12);
     this._sharedMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -78,6 +79,9 @@ export class ArgoMarkers {
     );
     this.instancedMesh.renderOrder = 10;
 
+    // Uniform instrument orange color for all Argo profiling floats (#FF8C00)
+    const orangeColor = new THREE.Color('#FF8C00');
+
     for (let i = 0; i < count; i++) {
       const float = positions[i];
       let lat = Number(float.lat) || 0;
@@ -90,12 +94,9 @@ export class ArgoMarkers {
       } else if (float.current_depth !== undefined && float.current_depth !== null) {
         depth = Number(float.current_depth);
       } else if (float.platform_type === 'glider') {
-        // Autonomous Gliders execute sawtooth diving profiles between 20m and 980m
         const idSeed = String(float.id || i).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
         depth = Math.round(Math.abs(Math.sin(idSeed * 0.47 + i * 1.3)) * 920 + 30);
       } else {
-        // Argo floats: 10-day cycle stages
-        // ~10% near surface (transmitting), ~70% at 1000m parking depth, ~20% deep profiling (up to 2000m)
         const idSeed = String(float.id || i).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
         const stage = idSeed % 10;
         if (stage === 0) {
@@ -125,9 +126,8 @@ export class ArgoMarkers {
       _dummy.updateMatrix();
       this.instancedMesh.setMatrixAt(i, _dummy.matrix);
 
-      // Use one orange marker color for consistent instrument visibility.
-      const col = new THREE.Color('#FF8C00');
-      this.instancedMesh.setColorAt(i, col);
+      // Uniform orange color for all markers
+      this.instancedMesh.setColorAt(i, orangeColor);
 
       // Store userData on a lightweight proxy for raycasting compatibility
       const proxy = {
@@ -146,7 +146,6 @@ export class ArgoMarkers {
           levels_count: float.levels_count,
         },
         instanceId: i,
-        // Scale methods for hover feedback
         scale: { set: (sx, sy, sz) => this._setInstanceScale(i, sx, sy, sz) },
         position: { x: xyz.x, y: xyz.y, z: xyz.z },
       };
@@ -188,6 +187,14 @@ export class ArgoMarkers {
   }
 
   /**
+   * Retained for interface compatibility across theme changes.
+   * @param {boolean} isLight
+   */
+  updateThemeColor(isLight = false) {
+    // No-op (tether lines removed)
+  }
+
+  /**
    * Computes the minimum and maximum operational depths among all currently rendered floats.
    */
   getDepthExtents() {
@@ -209,39 +216,22 @@ export class ArgoMarkers {
     // Retained for interface compatibility
   }
 
-  /**
-   * Backward-compatible alias for loadPositions.
-   */
   async load(positionsOrUrl) {
     return this.loadPositions(positionsOrUrl);
   }
 
-  /**
-   * Returns the instanced mesh for raycasting.
-   * @returns {Array<THREE.InstancedMesh>}
-   */
   getMarkers() {
     return this.instancedMesh ? [this.instancedMesh] : [];
   }
 
-  /**
-   * Returns userData for a given instanceId.
-   */
   getMarkerData(instanceId) {
     return this.markers[instanceId]?.userData || null;
   }
 
-  /**
-   * Sets visibility of markers group.
-   * @param {boolean} visible
-   */
   setVisible(visible) {
-    this.group.visible = visible;
+    this.group.visible = Boolean(visible);
   }
 
-  /**
-   * Cleans up GPU memory and removes objects from scene.
-   */
   dispose() {
     if (this.instancedMesh) {
       this.group.remove(this.instancedMesh);
