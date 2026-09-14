@@ -7,7 +7,7 @@ import { latLonDepthToXYZ, getDepthZ } from '../utils/coordTransform.js';
  * Features:
  *  - 4 vertical corner pillars (Surface 0m to Seafloor 5000m)
  *  - Surface & seafloor perimeter frames and geographic graticule grids
- *  - Intermediate depth level guide rings (200m thermocline, 1000m intermediate, 2000m deep)
+ *  - Intermediate depth level guide rings (200m thermocline, 500m mesopelagic, 1000m intermediate, 2000m deep)
  *  - Interactive billboard depth ruler badges along front-left corner pillar with click-to-select
  *  - Luminous cyan halo and [SELECTED] indicator on active depth
  *  - Dynamic scaling with vertical exaggeration (75x default)
@@ -128,8 +128,8 @@ export class WaterColumnCage {
       this.group.add(new THREE.Line(pillarGeo, this.pillarMat));
     }
 
-    // 4. Intermediate Depth Level Rings (200m thermocline, 1000m, 2000m, 5000m seafloor)
-    for (const d of [200, 1000, 2000, 5000]) {
+    // 4. Intermediate Depth Level Rings (200m thermocline, 500m mesopelagic, 1000m intermediate, 2000m deep, 5000m seafloor)
+    for (const d of [200, 500, 1000, 2000, 5000]) {
       const z = getDepthZ(d, 50);
       const ringPts = [
         new THREE.Vector3(cNW.x, cNW.y, z),

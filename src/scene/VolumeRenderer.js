@@ -6,8 +6,8 @@ import { loadModelData, generateSyntheticTile } from '../utils/dataLoader.js';
 // Reusable Color object — avoids per-vertex allocation in tight loops
 const _tmpColor = new THREE.Color();
 
-// Curated 3D context horizons (Thermocline 200m, Intermediate 1000m, Deep 2000m)
-const CONTEXT_DEPTHS = [200, 1000, 2000];
+// Curated 3D context horizons (Thermocline 200m, Mesopelagic 500m, Intermediate 1000m, Deep 2000m)
+const CONTEXT_DEPTHS = [200, 500, 1000, 2000];
 
 // Context layer subsampling factor — context planes render at 1/CONTEXT_STRIDE resolution.
 // At stride=3 the context mesh has 1/9 the vertices (~7,300 vs 66,000) → 9× faster rasterization on low-end GPUs.
