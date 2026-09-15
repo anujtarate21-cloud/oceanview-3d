@@ -50,12 +50,12 @@
   "var_ranges": {
     "temperature": {
       "min": 1.1,
-      "max": 31.82,
+      "max": 31.08,
       "units": "\u00b0C"
     },
     "salinity": {
-      "min": 1.14,
-      "max": 36.94,
+      "min": 1.13,
+      "max": 36.99,
       "units": "PSU"
     }
   }
